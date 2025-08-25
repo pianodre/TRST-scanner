@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain & Email Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    <div class="header">
+        <img src="/images/horizontol-homepage-logo.png" alt="Scanner Logo" class="logo">
+        <h1>Domain & Email Security Scanner</h1>
+        <p>Comprehensive security analysis for domains and email addresses</p>
+    </div>
+
+    <div class="container">
+        <div class="scanner-section">
+            <div class="input-group">
+                <h2>🔍 Scanner Input</h2>
+                <div class="input-container">
+                    <label for="scanType">Scan Type:</label>
+                    <select id="scanType" class="form-control">
+                        <option value="domain">Domain Scan</option>
+                        <option value="email">Email Scan</option>
+                        <option value="both">Both Domain & Email</option>
+                    </select>
+                </div>
+                
+                <div class="input-container">
+                    <label for="domainInput">Domain:</label>
+                    <input type="text" id="domainInput" class="form-control" placeholder="example.com" />
+                </div>
+                
+                <div class="input-container">
+                    <label for="emailInput">Email:</label>
+                    <input type="email" id="emailInput" class="form-control" placeholder="user@example.com" />
+                </div>
+                
+                <button id="scanBtn" class="scan-button">
+                    <span class="button-text">Start Scan</span>
+                    <span class="loading-spinner" style="display: none;">⟳</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <h2>📊 Scan Results</h2>
+            <div class="results-grid">
+                <div class="result-card" id="domainResults" style="display: none;">
+                    <h3>🌐 Domain Analysis</h3>
+                    <div class="result-content" id="domainContent"></div>
+                </div>
+                
+                <div class="result-card" id="emailResults" style="display: none;">
+                    <h3>📧 Email Analysis</h3>
+                    <div class="result-content" id="emailContent"></div>
+                </div>
+                
+                <div class="result-card" id="securityResults" style="display: none;">
+                    <h3>🔒 Security Assessment</h3>
+                    <div class="result-content" id="securityContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="capabilities-section">
+            <div class="capabilities-header">
+                <h2>Advanced Security Analysis</h2>
+                <p>Comprehensive domain and email security intelligence powered by enterprise-grade scanning technology</p>
+            </div>
+            
+            <div class="capabilities-grid">
+                <div class="capability-item">
+                    <div class="capability-icon">🌐</div>
+                    <div class="capability-content">
+                        <h3>Domain Intelligence</h3>
+                        <p>Deep analysis of domain infrastructure, DNS configuration, and SSL security posture</p>
+                        <div class="capability-tags">
+                            <span class="tag">WHOIS</span>
+                            <span class="tag">DNS Records</span>
+                            <span class="tag">SSL/TLS</span>
+                            <span class="tag">Subdomains</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="capability-item">
+                    <div class="capability-icon">📧</div>
+                    <div class="capability-content">
+                        <h3>Email Security</h3>
+                        <p>Comprehensive email validation and security protocol verification</p>
+                        <div class="capability-tags">
+                            <span class="tag">Validation</span>
+                            <span class="tag">MX Records</span>
+                            <span class="tag">SPF/DKIM/DMARC</span>
+                            <span class="tag">Breach Check</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="capability-item">
+                    <div class="capability-icon">🔒</div>
+                    <div class="capability-content">
+                        <h3>Threat Assessment</h3>
+                        <p>Advanced vulnerability scanning and reputation analysis with risk scoring</p>
+                        <div class="capability-tags">
+                            <span class="tag">Vulnerabilities</span>
+                            <span class="tag">Reputation</span>
+                            <span class="tag">Threat Intel</span>
+                            <span class="tag">Risk Score</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
