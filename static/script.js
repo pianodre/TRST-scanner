@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', function() {
         resultsSection.style.display = 'none';
 
         try {
-            // For now, only call whois scan for domain scans
             let response;
             if (type === 'domain' && domain) {
                 response = await fetch('/api/whois/scan', {
@@ -68,18 +67,56 @@ document.addEventListener('DOMContentLoaded', function() {
                         domain: domain
                     })
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                displayWhoisResults(data);
+            } else if (type === 'email' && email) {
+                response = await fetch('/api/leakcheck/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                displayLeakCheckResults(data);
+            } else if (type === 'both' && domain && email) {
+                // Call both APIs
+                const [domainResponse, emailResponse] = await Promise.all([
+                    fetch('/api/whois/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ domain: domain })
+                    }),
+                    fetch('/api/leakcheck/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email })
+                    })
+                ]);
+                
+                if (!domainResponse.ok || !emailResponse.ok) {
+                    throw new Error('One or more scans failed');
+                }
+                
+                const domainData = await domainResponse.json();
+                const emailData = await emailResponse.json();
+                displayCombinedResults(domainData, emailData);
             } else {
-                // For other scan types, show placeholder message
                 displayPlaceholderResults(type);
                 return;
             }
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            displayWhoisResults(data);
         } catch (error) {
             console.error('Scan error:', error);
             showError(`Scan failed: ${error.message}`);
@@ -372,6 +409,153 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         securityContent.innerHTML = securityHtml || '<p>Security assessment completed</p>';
+    }
+
+    function displayLeakCheckResults(data) {
+        resultsSection.style.display = 'block';
+        domainResults.style.display = 'none';
+        emailResults.style.display = 'block';
+        securityResults.style.display = 'block';
+
+        // Display LeakCheck email results
+        const emailContent = document.getElementById('emailContent');
+        let emailHtml = '';
+
+        if (data.status === 'success') {
+            const riskColor = data.risk_level === 'high' ? 'error' : 
+                             data.risk_level === 'medium' ? 'warning' : 'success';
+            
+            emailHtml += `
+                <div class="result-item">
+                    <strong>LeakCheck Breach Detection:</strong><br>
+                    <span class="status-indicator status-${riskColor}"></span>
+                    Email: ${data.email}<br>
+                    Found in ${data.breach_count} breach(es)<br>
+                    Risk Level: ${data.risk_level.toUpperCase()}
+                </div>
+            `;
+
+            if (data.sources && data.sources.length > 0) {
+                emailHtml += `
+                    <div class="result-item">
+                        <strong>Breach Sources (showing ${Math.min(data.sources.length, 10)} of ${data.total_sources}):</strong><br>
+                        ${data.sources.slice(0, 10).map(source => 
+                            `<span class="status-indicator status-warning"></span>${source}`
+                        ).join('<br>')}
+                    </div>
+                `;
+            }
+        } else if (data.status === 'error') {
+            emailHtml = `
+                <div class="result-item">
+                    <span class="status-indicator status-error"></span>
+                    Error: ${data.error || 'Failed to check email against LeakCheck database'}
+                </div>
+            `;
+        }
+
+        emailContent.innerHTML = emailHtml;
+
+        // Display security assessment
+        const securityContent = document.getElementById('securityContent');
+        let securityHtml = '';
+
+        if (data.status === 'success') {
+            const riskColor = data.risk_level === 'high' ? 'error' : 
+                             data.risk_level === 'medium' ? 'warning' : 'success';
+            
+            securityHtml += `
+                <div class="result-item">
+                    <strong>Email Security Assessment:</strong><br>
+                    <span class="status-indicator status-${riskColor}"></span>
+                    ${data.risk_message}<br>
+                    Status: ${data.message}
+                </div>
+            `;
+        }
+
+        securityContent.innerHTML = securityHtml || '<p>Security assessment completed</p>';
+    }
+
+    function displayCombinedResults(domainData, emailData) {
+        resultsSection.style.display = 'block';
+        domainResults.style.display = 'block';
+        emailResults.style.display = 'block';
+        securityResults.style.display = 'block';
+
+        // Display domain results (reuse existing function logic)
+        const domainContent = document.getElementById('domainContent');
+        let domainHtml = '';
+
+        if (domainData.status === 'success') {
+            domainHtml += `
+                <div class="result-item">
+                    <strong>Domain Information:</strong><br>
+                    <span class="status-indicator status-success"></span>Domain: ${domainData.domain}<br>
+                    ${domainData.registrar ? `Registrar: ${domainData.registrar}<br>` : ''}
+                    ${domainData.creation_date ? `Created: ${domainData.creation_date}<br>` : ''}
+                    ${domainData.expiration_date ? `Expires: ${domainData.expiration_date}<br>` : ''}
+                </div>
+            `;
+        }
+        domainContent.innerHTML = domainHtml;
+
+        // Display email results (reuse LeakCheck logic)
+        const emailContent = document.getElementById('emailContent');
+        let emailHtml = '';
+
+        if (emailData.status === 'success') {
+            const riskColor = emailData.risk_level === 'high' ? 'error' : 
+                             emailData.risk_level === 'medium' ? 'warning' : 'success';
+            
+            emailHtml += `
+                <div class="result-item">
+                    <strong>LeakCheck Breach Detection:</strong><br>
+                    <span class="status-indicator status-${riskColor}"></span>
+                    Email: ${emailData.email}<br>
+                    Found in ${emailData.breach_count} breach(es)<br>
+                    Risk Level: ${emailData.risk_level.toUpperCase()}
+                </div>
+            `;
+        }
+        emailContent.innerHTML = emailHtml;
+
+        // Combined security assessment
+        const securityContent = document.getElementById('securityContent');
+        let securityHtml = '';
+
+        // Domain security
+        if (domainData.security_assessment) {
+            const assessment = domainData.security_assessment;
+            const riskColor = assessment.risk_level === 'high' ? 'error' : 
+                             assessment.risk_level === 'medium' ? 'warning' : 'success';
+            
+            securityHtml += `
+                <div class="result-item">
+                    <strong>Domain Security:</strong><br>
+                    <span class="status-indicator status-${riskColor}"></span>
+                    Risk Level: ${assessment.risk_level.toUpperCase()}<br>
+                    ${assessment.days_until_expiry !== null ? 
+                        `Days Until Expiry: ${assessment.days_until_expiry}<br>` : ''}
+                </div>
+            `;
+        }
+
+        // Email security
+        if (emailData.status === 'success') {
+            const riskColor = emailData.risk_level === 'high' ? 'error' : 
+                             emailData.risk_level === 'medium' ? 'warning' : 'success';
+            
+            securityHtml += `
+                <div class="result-item">
+                    <strong>Email Security:</strong><br>
+                    <span class="status-indicator status-${riskColor}"></span>
+                    ${emailData.risk_message}
+                </div>
+            `;
+        }
+
+        securityContent.innerHTML = securityHtml || '<p>Combined security assessment completed</p>';
     }
 
     // Initialize form state
