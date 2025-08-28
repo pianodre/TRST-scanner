@@ -1,17 +1,23 @@
-# Simple Flask App
+# Domain & Email Security Scanner
 
-A barebones Flask backend with HTML frontend.
+A comprehensive security scanning application that analyzes domains and email addresses for potential security risks, breaches, and vulnerabilities. Built with Flask backend and modern web frontend.
 
 ## Project Structure
 ```
 /
-├── app.py              # Flask backend
-├── requirements.txt    # Python dependencies
-├── templates/          # HTML templates
-│   └── index.html     # Main page
-└── static/            # Static files
-    ├── style.css      # CSS styles
-    └── script.js      # JavaScript
+├── app.py                      # Flask routes and main application
+├── requirements.txt            # Python dependencies
+├── services/                   # Business logic modules
+│   ├── __init__.py            # Package initialization
+│   ├── domain_services.py     # WHOIS & domain analysis
+│   ├── email_services.py      # Email breach detection (LeakCheck, HIBP, DeHashed)
+│   └── security_utils.py      # Risk assessment utilities
+├── templates/                  # HTML templates
+│   └── index.html             # Main scanner interface
+├── static/                    # Static assets
+│   ├── style.css             # Application styles
+│   └── script.js             # Frontend JavaScript
+└── images/                    # Logo and image assets
 ```
 
 ## Setup
