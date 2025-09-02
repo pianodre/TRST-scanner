@@ -9,6 +9,10 @@
 </head>
 <body>
     <div class="header">
+        <div class="user-info">
+            <span class="welcome-text">Welcome, <strong>{{ username }}</strong></span>
+            <button onclick="logout()" class="logout-btn">Logout</button>
+        </div>
         <img src="/images/horizontol-homepage-logo.png" alt="Scanner Logo" class="logo">
         <h1>Domain & Email Security Scanner</h1>
         <p>Comprehensive security analysis for domains and email addresses</p>

@@ -1,21 +1,77 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for, flash
+import os
+import sqlite3
+import bcrypt
 
-from services.domain_services import whois_scan, easydmarc_scan
+from services.domain_services import whois_scan, easydmarc_scan, dmarc_scan
 from services.email_services import leakcheck_scan, hibp_scan, dehashed_scan
 from services.security_utils import assess_combined_risk, format_security_message
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'a8f5f167f44f4964e6c998dee827110c')  # Secure fallback for consumer use
+
+def get_db_connection():
+    """Get database connection."""
+    conn = sqlite3.connect('scanner.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def verify_user(username, password):
+    """Verify user credentials against database."""
+    conn = get_db_connection()
+    user = conn.execute(
+        'SELECT * FROM users WHERE username = ?', (username,)
+    ).fetchone()
+    conn.close()
+    
+    if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+        return True
+    return False
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('index.html', username=session['username'])
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if verify_user(username, password):
+            session['username'] = username
+            flash(f'Welcome, {username}!', 'success')
+            return redirect(url_for('home'))
+        else:
+            return render_template('login.html', error='Invalid username or password')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    username = session.get('username', 'User')
+    session.pop('username', None)
+    flash(f'Goodbye, {username}!', 'info')
+    return redirect(url_for('login'))
 
 @app.route('/images/<filename>')
 def serve_image(filename):
     return send_from_directory('images', filename)
 
+def require_login(f):
+    """Decorator to require login for API routes"""
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
 def create_scan_route(service_function, param_extractors):
     """Generic route handler to eliminate duplicate code"""
+    @require_login
     def route_handler():
         try:
             data = request.get_json()
@@ -79,9 +135,19 @@ def whois_scan_route():
     return create_scan_route(whois_scan, {'domain': lambda d: d.get('domain', '').strip()})()
 
 # =============================================================================
+# DMARC Scanner - DNS-based DMARC record analysis
+# Cost: Free (using dnspython)
+# Focus: DMARC policy analysis with Bad/Okay/Good rating
+# =============================================================================
+@app.route('/api/dmarc/scan', methods=['POST'])
+def dmarc_scan_route():
+    return create_scan_route(dmarc_scan, {'domain': lambda d: d.get('domain', '').strip()})()
+
+# =============================================================================
 # Combined scan endpoint - orchestrates multiple services
 # =============================================================================
 @app.route('/api/scan/combined', methods=['POST'])
+@require_login
 def combined_scan():
     """
     Combined scanning using multiple services

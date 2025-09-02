@@ -1,3 +1,10 @@
+// Logout function
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        window.location.href = '/logout';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const scanBtn = document.getElementById('scanBtn');
     const scanType = document.getElementById('scanType');
@@ -58,22 +65,28 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             let response;
             if (type === 'domain' && domain) {
-                response = await fetch('/api/whois/scan', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        domain: domain
+                // Call both WHOIS and DMARC APIs for domain scanning
+                const [whoisResponse, dmarcResponse] = await Promise.all([
+                    fetch('/api/whois/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ domain: domain })
+                    }),
+                    fetch('/api/dmarc/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ domain: domain })
                     })
-                });
+                ]);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                if (!whoisResponse.ok || !dmarcResponse.ok) {
+                    throw new Error(`HTTP error! WHOIS: ${whoisResponse.status}, DMARC: ${dmarcResponse.status}`);
                 }
                 
-                const data = await response.json();
-                displayWhoisResults(data);
+                const whoisData = await whoisResponse.json();
+                const dmarcData = await dmarcResponse.json();
+                
+                displayDomainResults(whoisData, dmarcData);
             } else if (type === 'email' && email) {
                 response = await fetch('/api/leakcheck/scan', {
                     method: 'POST',
@@ -92,9 +105,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 displayLeakCheckResults(data);
             } else if (type === 'both' && domain && email) {
-                // Call both APIs
-                const [domainResponse, emailResponse] = await Promise.all([
+                // Call all three APIs for comprehensive scanning
+                const [whoisResponse, dmarcResponse, emailResponse] = await Promise.all([
                     fetch('/api/whois/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ domain: domain })
+                    }),
+                    fetch('/api/dmarc/scan', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ domain: domain })
@@ -106,13 +124,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 ]);
                 
-                if (!domainResponse.ok || !emailResponse.ok) {
+                if (!whoisResponse.ok || !dmarcResponse.ok || !emailResponse.ok) {
                     throw new Error('One or more scans failed');
                 }
                 
-                const domainData = await domainResponse.json();
+                const whoisData = await whoisResponse.json();
+                const dmarcData = await dmarcResponse.json();
                 const emailData = await emailResponse.json();
-                displayCombinedResults(domainData, emailData);
+                displayCombinedResults(whoisData, dmarcData, emailData);
             } else {
                 displayPlaceholderResults(type);
                 return;
@@ -151,70 +170,216 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    function displayResults(data, scanType) {
+    // New function to display domain results with WHOIS and DMARC data
+    function displayDomainResults(whoisData, dmarcData) {
         resultsSection.style.display = 'block';
-        
-        // Show/hide relevant result cards
-        domainResults.style.display = (scanType === 'domain' || scanType === 'both') ? 'block' : 'none';
-        emailResults.style.display = (scanType === 'email' || scanType === 'both') ? 'block' : 'none';
+        domainResults.style.display = 'block';
+        emailResults.style.display = 'none';
         securityResults.style.display = 'block';
-
-        // Display domain results
-        if (data.domain && (scanType === 'domain' || scanType === 'both')) {
-            displayDomainResults(data.domain);
-        }
-
-        // Display email results
-        if (data.email && (scanType === 'email' || scanType === 'both')) {
-            displayEmailResults(data.email);
-        }
-
-        // Display security assessment
-        if (data.security) {
-            displaySecurityResults(data.security);
-        }
-    }
-
-    function displayDomainResults(domainData) {
+        
         const content = document.getElementById('domainContent');
         let html = '';
 
-        if (domainData.whois) {
+        // WHOIS Information
+        if (whoisData && whoisData.status === 'success') {
             html += `
-                <div class="result-item">
-                    <strong>WHOIS Information:</strong><br>
-                    <span class="status-indicator status-${domainData.whois.status}"></span>
-                    Registrar: ${domainData.whois.registrar || 'N/A'}<br>
-                    Created: ${domainData.whois.created || 'N/A'}<br>
-                    Expires: ${domainData.whois.expires || 'N/A'}
+                <div class="result-item" style="margin-bottom: 20px;">
+                    <strong>🏢 WHOIS Information:</strong><br>
+                    <span class="status-indicator status-success"></span>
+                    <strong>Domain:</strong> ${whoisData.domain || 'N/A'}<br>
+                    <strong>Registrar:</strong> ${whoisData.registrar || 'N/A'}<br>
+                    <strong>Created:</strong> ${whoisData.creation_date || 'N/A'}<br>
+                    <strong>Expires:</strong> ${whoisData.expiration_date || 'N/A'}<br>
+                    ${whoisData.nameservers && whoisData.nameservers.length > 0 ? 
+                        `<strong>Nameservers:</strong> ${whoisData.nameservers.slice(0, 2).join(', ')}` : ''}
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="result-item" style="margin-bottom: 20px;">
+                    <strong>🏢 WHOIS Information:</strong><br>
+                    <span class="status-indicator status-error"></span>
+                    Failed to retrieve WHOIS data
                 </div>
             `;
         }
 
-        if (domainData.dns) {
+        // DMARC Information
+        if (dmarcData) {
+            const statusClass = dmarcData.status === 'Good' ? 'status-success' : 
+                               dmarcData.status === 'Okay' ? 'status-warning' : 'status-error';
+            
             html += `
                 <div class="result-item">
-                    <strong>DNS Records:</strong><br>
-                    ${domainData.dns.map(record => 
-                        `<span class="status-indicator status-info"></span>${record.type}: ${record.value}`
-                    ).join('<br>')}
+                    <strong>🔒 DMARC Analysis:</strong><br>
+                    <span class="status-indicator ${statusClass}"></span>
+                    <strong>Status:</strong> <span style="font-weight: bold; color: ${
+                        dmarcData.status === 'Good' ? '#00c3f5' : 
+                        dmarcData.status === 'Okay' ? '#878787' : '#000000'
+                    };">${dmarcData.status}</span><br>
+                    <strong>Message:</strong> ${dmarcData.message || 'N/A'}<br>
+                    ${dmarcData.record ? `<strong>Record:</strong> ${dmarcData.record}<br>` : ''}
+                    ${dmarcData.details && dmarcData.details.policy ? 
+                        `<strong>Policy:</strong> ${dmarcData.details.policy}<br>` : ''}
+                    ${dmarcData.details && dmarcData.details.percentage ? 
+                        `<strong>Coverage:</strong> ${dmarcData.details.percentage}%<br>` : ''}
+                    ${dmarcData.details && dmarcData.details.reporting_uri ? 
+                        `<strong>Reporting:</strong> Configured<br>` : ''}
                 </div>
             `;
         }
 
-        if (domainData.ssl) {
-            html += `
-                <div class="result-item">
-                    <strong>SSL Certificate:</strong><br>
-                    <span class="status-indicator status-${domainData.ssl.valid ? 'success' : 'error'}"></span>
-                    Valid: ${domainData.ssl.valid ? 'Yes' : 'No'}<br>
-                    Expires: ${domainData.ssl.expires || 'N/A'}
-                </div>
-            `;
-        }
-
-        content.innerHTML = html || '<p>No domain data available</p>';
+        content.innerHTML = html;
+        
+        // Show security assessment
+        displaySecurityAssessment(whoisData, dmarcData);
     }
+
+    // Function to display combined results (both domain and email)
+    function displayCombinedResults(whoisData, dmarcData, emailData) {
+        resultsSection.style.display = 'block';
+        domainResults.style.display = 'block';
+        emailResults.style.display = 'block';
+        securityResults.style.display = 'block';
+        
+        // Display domain results
+        const domainContent = document.getElementById('domainContent');
+        let domainHtml = '';
+
+        // WHOIS Information
+        if (whoisData && whoisData.status === 'success') {
+            domainHtml += `
+                <div class="result-item" style="margin-bottom: 15px;">
+                    <strong>🏢 WHOIS:</strong><br>
+                    <span class="status-indicator status-success"></span>
+                    ${whoisData.registrar || 'N/A'} | Expires: ${whoisData.expiration_date || 'N/A'}
+                </div>
+            `;
+        }
+
+        // DMARC Information
+        if (dmarcData) {
+            const statusClass = dmarcData.status === 'Good' ? 'status-success' : 
+                               dmarcData.status === 'Okay' ? 'status-warning' : 'status-error';
+            
+            domainHtml += `
+                <div class="result-item">
+                    <strong>🔒 DMARC:</strong><br>
+                    <span class="status-indicator ${statusClass}"></span>
+                    <strong>${dmarcData.status}</strong> - ${dmarcData.message || 'N/A'}
+                </div>
+            `;
+        }
+
+        domainContent.innerHTML = domainHtml;
+        
+        // Display email results
+        displayLeakCheckResults(emailData);
+        
+        // Show combined security assessment
+        displayCombinedSecurityAssessment(whoisData, dmarcData, emailData);
+    }
+
+    // Function to display security assessment for domain-only scans
+    function displaySecurityAssessment(whoisData, dmarcData) {
+        const content = document.getElementById('securityContent');
+        let html = '';
+        
+        let riskScore = 0;
+        let threats = [];
+        
+        // Assess WHOIS risk
+        if (whoisData && whoisData.status === 'success') {
+            riskScore += 25;
+            if (whoisData.security_assessment) {
+                if (whoisData.security_assessment.days_until_expiry < 30) {
+                    threats.push('Domain expires soon');
+                } else {
+                    riskScore += 15;
+                }
+            }
+        } else {
+            threats.push('WHOIS data unavailable');
+        }
+        
+        // Assess DMARC risk
+        if (dmarcData) {
+            if (dmarcData.status === 'Good') {
+                riskScore += 35;
+            } else if (dmarcData.status === 'Okay') {
+                riskScore += 20;
+                threats.push('DMARC policy could be stronger');
+            } else {
+                threats.push('Poor or missing DMARC policy');
+            }
+        }
+        
+        const finalRisk = Math.max(0, 100 - riskScore);
+        const riskLevel = finalRisk > 70 ? 'High' : finalRisk > 40 ? 'Medium' : 'Low';
+        const riskClass = finalRisk > 70 ? 'status-error' : finalRisk > 40 ? 'status-warning' : 'status-success';
+        
+        html += `
+            <div class="result-item">
+                <strong>📊 Security Assessment:</strong><br>
+                <span class="status-indicator ${riskClass}"></span>
+                <strong>Risk Level:</strong> ${riskLevel} (${finalRisk}/100)<br>
+                ${threats.length > 0 ? `<strong>Issues:</strong> ${threats.join(', ')}` : '<strong>Status:</strong> No major issues detected'}
+            </div>
+        `;
+        
+        content.innerHTML = html;
+    }
+
+    // Function to display combined security assessment
+    function displayCombinedSecurityAssessment(whoisData, dmarcData, emailData) {
+        const content = document.getElementById('securityContent');
+        let html = '';
+        
+        let riskScore = 0;
+        let threats = [];
+        
+        // Domain assessment
+        if (whoisData && whoisData.status === 'success') {
+            riskScore += 20;
+        } else {
+            threats.push('WHOIS issues');
+        }
+        
+        if (dmarcData) {
+            if (dmarcData.status === 'Good') {
+                riskScore += 25;
+            } else if (dmarcData.status === 'Okay') {
+                riskScore += 15;
+            } else {
+                threats.push('DMARC issues');
+            }
+        }
+        
+        // Email assessment
+        if (emailData && emailData.status === 'success') {
+            if (emailData.found && emailData.found.length > 0) {
+                threats.push('Email found in breaches');
+            } else {
+                riskScore += 25;
+            }
+        }
+        
+        const finalRisk = Math.max(0, 100 - riskScore);
+        const riskLevel = finalRisk > 70 ? 'High' : finalRisk > 40 ? 'Medium' : 'Low';
+        const riskClass = finalRisk > 70 ? 'status-error' : finalRisk > 40 ? 'status-warning' : 'status-success';
+        
+        html += `
+            <div class="result-item">
+                <strong>📊 Combined Security Assessment:</strong><br>
+                <span class="status-indicator ${riskClass}"></span>
+                <strong>Overall Risk:</strong> ${riskLevel} (${finalRisk}/100)<br>
+                ${threats.length > 0 ? `<strong>Issues:</strong> ${threats.join(', ')}` : '<strong>Status:</strong> All checks passed'}
+            </div>
+        `;
+        
+        content.innerHTML = html;
+    }
+
 
     function displayEmailResults(emailData) {
         const content = document.getElementById('emailContent');
@@ -254,6 +419,87 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         content.innerHTML = html || '<p>No email data available</p>';
+    }
+
+    function displayLeakCheckResults(data) {
+        resultsSection.style.display = 'block';
+        domainResults.style.display = 'none';
+        emailResults.style.display = 'block';
+        securityResults.style.display = 'block';
+        
+        const content = document.getElementById('emailContent');
+        let html = '';
+        
+        if (data && data.status === 'success') {
+            if (data.found && data.found.length > 0) {
+                html += `
+                    <div class="result-item">
+                        <strong>⚠️ Breach Detection:</strong><br>
+                        <span class="status-indicator status-error"></span>
+                        <strong>Email found in ${data.found.length} breach(es)</strong><br>
+                        ${data.found.slice(0, 5).map(breach => 
+                            `• ${breach.name || breach.source || 'Unknown source'} (${breach.date || 'Unknown date'})`
+                        ).join('<br>')}
+                        ${data.found.length > 5 ? `<br>... and ${data.found.length - 5} more` : ''}
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="result-item">
+                        <strong>✅ Breach Detection:</strong><br>
+                        <span class="status-indicator status-success"></span>
+                        No breaches found for this email address
+                    </div>
+                `;
+            }
+        } else {
+            html += `
+                <div class="result-item">
+                    <strong>📧 Email Analysis:</strong><br>
+                    <span class="status-indicator status-error"></span>
+                    ${data && data.message ? data.message : 'Failed to analyze email'}
+                </div>
+            `;
+        }
+        
+        content.innerHTML = html;
+        
+        // Show security assessment for email
+        displayEmailSecurityAssessment(data);
+    }
+
+    function displayEmailSecurityAssessment(emailData) {
+        const content = document.getElementById('securityContent');
+        let html = '';
+        
+        let riskScore = 0;
+        let threats = [];
+        
+        if (emailData && emailData.status === 'success') {
+            if (emailData.found && emailData.found.length > 0) {
+                threats.push(`Email found in ${emailData.found.length} breach(es)`);
+                riskScore = Math.min(emailData.found.length * 20, 80); // Cap at 80
+            } else {
+                riskScore = 0;
+            }
+        } else {
+            threats.push('Email analysis failed');
+            riskScore = 50;
+        }
+        
+        const riskLevel = riskScore > 60 ? 'High' : riskScore > 30 ? 'Medium' : 'Low';
+        const riskClass = riskScore > 60 ? 'status-error' : riskScore > 30 ? 'status-warning' : 'status-success';
+        
+        html += `
+            <div class="result-item">
+                <strong>📊 Email Security Assessment:</strong><br>
+                <span class="status-indicator ${riskClass}"></span>
+                <strong>Risk Level:</strong> ${riskLevel} (${riskScore}/100)<br>
+                ${threats.length > 0 ? `<strong>Issues:</strong> ${threats.join(', ')}` : '<strong>Status:</strong> Email appears secure'}
+            </div>
+        `;
+        
+        content.innerHTML = html;
     }
 
     function displaySecurityResults(securityData) {

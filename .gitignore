@@ -9,6 +9,18 @@ venv/
 env/
 .env
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Security & Environment
+.env.local
+.env.production
+.env.development
+config.json
+secrets.json
+
 # IDE
 .vscode/
 .idea/
@@ -21,3 +33,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Flask
+instance/
+.webassets-cache

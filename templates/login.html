@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Domain & Email Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: linear-gradient(145deg, #2a2a2a 0%, #252525 100%);
+            border-radius: 20px;
+            padding: 48px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00c3f5, transparent);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .login-logo {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            filter: drop-shadow(0 4px 8px rgba(0, 195, 245, 0.2));
+        }
+        
+        .login-header h1 {
+            color: #ffffff;
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 195, 245, 0.3);
+        }
+        
+        .login-header p {
+            color: #a0a0a0;
+            font-size: 1rem;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .form-group label {
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .login-button {
+            background: linear-gradient(135deg, #00c3f5 0%, #0099cc 100%);
+            color: #ffffff;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 
+                0 8px 16px rgba(0, 195, 245, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+        
+        .login-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #5fb8e6 0%, #00a8d4 100%);
+            box-shadow: 
+                0 12px 24px rgba(0, 195, 245, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        
+        .login-button:active {
+            transform: translateY(0);
+        }
+        
+        .error-message {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            color: #ff4444;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        
+        .demo-credentials {
+            background: rgba(0, 195, 245, 0.1);
+            border: 1px solid rgba(0, 195, 245, 0.3);
+            color: #00c3f5;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 24px;
+            font-size: 14px;
+        }
+        
+        .demo-credentials h4 {
+            margin: 0 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .demo-credentials p {
+            margin: 4px 0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <img src="/images/homepage-logo.png" alt="Scanner Logo" class="login-logo">
+                <h1>Security Scanner</h1>
+                <p>Please log in to access the scanner</p>
+            </div>
+            
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form class="login-form" method="POST">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" class="form-control" required>
+                </div>
+                
+                <button type="submit" class="login-button">Login</button>
+            </form>
+            
+        </div>
+    </div>
+</body>
+</html>

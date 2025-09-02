@@ -1,4 +1,5 @@
 import whois
+import dns.resolver
 from datetime import datetime
 
 
@@ -72,6 +73,150 @@ def whois_scan(domain):
             'error': str(e),
             'message': 'Failed to retrieve WHOIS information'
         }, 200  # Return 200 so frontend can handle the error response
+
+
+def dmarc_scan(domain):
+    """
+    DMARC record analysis using dnspython
+    - Checks for DMARC record existence
+    - Analyzes policy strength
+    - Returns Bad/Okay/Good rating
+    """
+    try:
+        if not domain:
+            return {'error': 'Domain is required'}, 400
+        
+        # Query DMARC record
+        dmarc_domain = f"_dmarc.{domain}"
+        dmarc_record = None
+        
+        try:
+            answers = dns.resolver.resolve(dmarc_domain, 'TXT')
+            for answer in answers:
+                record_text = str(answer).strip('"')
+                if record_text.startswith('v=DMARC1'):
+                    dmarc_record = record_text
+                    break
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            return {
+                'status': 'Bad',
+                'domain': domain,
+                'record': None,
+                'message': 'No DMARC record found',
+                'details': {
+                    'policy': None,
+                    'percentage': None,
+                    'alignment': None,
+                    'reporting': None
+                }
+            }, 200
+        
+        if not dmarc_record:
+            return {
+                'status': 'Bad',
+                'domain': domain,
+                'record': None,
+                'message': 'No valid DMARC record found',
+                'details': {
+                    'policy': None,
+                    'percentage': None,
+                    'alignment': None,
+                    'reporting': None
+                }
+            }, 200
+        
+        # Parse DMARC record
+        dmarc_details = parse_dmarc_record(dmarc_record)
+        
+        # Determine status based on DMARC policy strength
+        status = evaluate_dmarc_status(dmarc_details)
+        
+        return {
+            'status': status,
+            'domain': domain,
+            'record': dmarc_record,
+            'message': f'DMARC status: {status}',
+            'details': dmarc_details
+        }, 200
+    
+    except Exception as e:
+        return {
+            'status': 'Bad',
+            'domain': domain,
+            'error': str(e),
+            'message': 'Failed to check DMARC record'
+        }, 200
+
+
+def parse_dmarc_record(record):
+    """Parse DMARC record and extract key components"""
+    details = {
+        'policy': None,
+        'subdomain_policy': None,
+        'percentage': 100,
+        'alignment_spf': None,
+        'alignment_dkim': None,
+        'reporting_uri': None,
+        'forensic_uri': None,
+        'report_interval': None
+    }
+    
+    # Split record into key-value pairs
+    pairs = record.split(';')
+    for pair in pairs:
+        if '=' in pair:
+            key, value = pair.strip().split('=', 1)
+            key = key.strip().lower()
+            value = value.strip()
+            
+            if key == 'p':
+                details['policy'] = value
+            elif key == 'sp':
+                details['subdomain_policy'] = value
+            elif key == 'pct':
+                try:
+                    details['percentage'] = int(value)
+                except:
+                    details['percentage'] = 100
+            elif key == 'aspf':
+                details['alignment_spf'] = value
+            elif key == 'adkim':
+                details['alignment_dkim'] = value
+            elif key == 'rua':
+                details['reporting_uri'] = value
+            elif key == 'ruf':
+                details['forensic_uri'] = value
+            elif key == 'ri':
+                try:
+                    details['report_interval'] = int(value)
+                except:
+                    details['report_interval'] = None
+    
+    return details
+
+
+def evaluate_dmarc_status(details):
+    """Evaluate DMARC configuration and return Bad/Okay/Good"""
+    policy = details.get('policy', '').lower()
+    percentage = details.get('percentage', 0)
+    
+    # Bad: No policy, none policy, or very low percentage
+    if not policy or policy == 'none':
+        return 'Bad'
+    
+    if percentage < 25:
+        return 'Bad'
+    
+    # Good: Reject policy with high percentage
+    if policy == 'reject' and percentage >= 100:
+        return 'Good'
+    
+    # Good: Quarantine policy with full percentage and reporting
+    if policy == 'quarantine' and percentage >= 100 and details.get('reporting_uri'):
+        return 'Good'
+    
+    # Okay: Everything else (quarantine with lower percentage, etc.)
+    return 'Okay'
 
 
 def easydmarc_scan(domain):

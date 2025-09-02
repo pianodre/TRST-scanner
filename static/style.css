@@ -21,6 +21,52 @@ body {
     position: relative;
 }
 
+.user-info {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 10;
+}
+
+.welcome-text {
+    color: #e0e0e0;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.welcome-text strong {
+    color: #00c3f5;
+    font-weight: 700;
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%);
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 8px rgba(255, 68, 68, 0.3);
+}
+
+.logout-btn:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, #ff6666 0%, #dd4444 100%);
+    box-shadow: 0 6px 12px rgba(255, 68, 68, 0.4);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+}
+
 .header::after {
     content: '';
     position: absolute;
