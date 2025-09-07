@@ -99,7 +99,6 @@ def dmarc_scan(domain):
                     break
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
             return {
-                'status': 'Bad',
                 'domain': domain,
                 'record': None,
                 'message': 'No DMARC record found',
@@ -113,7 +112,6 @@ def dmarc_scan(domain):
         
         if not dmarc_record:
             return {
-                'status': 'Bad',
                 'domain': domain,
                 'record': None,
                 'message': 'No valid DMARC record found',
@@ -128,20 +126,15 @@ def dmarc_scan(domain):
         # Parse DMARC record
         dmarc_details = parse_dmarc_record(dmarc_record)
         
-        # Determine status based on DMARC policy strength
-        status = evaluate_dmarc_status(dmarc_details)
-        
         return {
-            'status': status,
             'domain': domain,
             'record': dmarc_record,
-            'message': f'DMARC status: {status}',
+            'message': 'DMARC record found and parsed',
             'details': dmarc_details
         }, 200
     
     except Exception as e:
         return {
-            'status': 'Bad',
             'domain': domain,
             'error': str(e),
             'message': 'Failed to check DMARC record'
@@ -216,6 +209,181 @@ def evaluate_dmarc_status(details):
         return 'Good'
     
     # Okay: Everything else (quarantine with lower percentage, etc.)
+    return 'Okay'
+
+
+def spf_scan(domain):
+    """
+    SPF (Sender Policy Framework) record analysis using dnspython
+    - Checks for SPF record existence
+    - Analyzes SPF policy mechanisms
+    - Returns Bad/Okay/Good rating based on configuration
+    """
+    try:
+        if not domain:
+            return {'error': 'Domain is required'}, 400
+        
+        # Query SPF record (TXT record for the domain)
+        spf_record = None
+        
+        try:
+            answers = dns.resolver.resolve(domain, 'TXT')
+            for answer in answers:
+                record_text = str(answer).strip('"')
+                if record_text.startswith('v=spf1'):
+                    spf_record = record_text
+                    break
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            return {
+                'domain': domain,
+                'record': None,
+                'message': 'No SPF record found',
+                'details': {
+                    'mechanisms': [],
+                    'qualifiers': [],
+                    'includes': [],
+                    'all_mechanism': None,
+                    'redirect': None
+                }
+            }, 200
+        
+        if not spf_record:
+            return {
+                'domain': domain,
+                'record': None,
+                'message': 'No valid SPF record found',
+                'details': {
+                    'mechanisms': [],
+                    'qualifiers': [],
+                    'includes': [],
+                    'all_mechanism': None,
+                    'redirect': None
+                }
+            }, 200
+        
+        # Parse SPF record
+        spf_details = parse_spf_record(spf_record)
+        
+        return {
+            'domain': domain,
+            'record': spf_record,
+            'message': 'SPF record found and parsed',
+            'details': spf_details
+        }, 200
+    
+    except Exception as e:
+        return {
+            'domain': domain,
+            'error': str(e),
+            'message': 'Failed to check SPF record'
+        }, 200
+
+
+def parse_spf_record(record):
+    """Parse SPF record and extract key components"""
+    details = {
+        'mechanisms': [],
+        'qualifiers': [],
+        'includes': [],
+        'all_mechanism': None,
+        'redirect': None,
+        'ip4_addresses': [],
+        'ip6_addresses': [],
+        'a_records': [],
+        'mx_records': [],
+        'exists': []
+    }
+    
+    # Split record into mechanisms
+    parts = record.split()
+    
+    for part in parts[1:]:  # Skip 'v=spf1'
+        part = part.strip()
+        
+        # Extract qualifier (+ - ~ ?)
+        qualifier = '+'  # Default qualifier
+        if part.startswith(('+', '-', '~', '?')):
+            qualifier = part[0]
+            mechanism = part[1:]
+        else:
+            mechanism = part
+        
+        details['qualifiers'].append(qualifier)
+        
+        # Parse different mechanism types
+        if mechanism.startswith('include:'):
+            include_domain = mechanism[8:]
+            details['includes'].append(include_domain)
+            details['mechanisms'].append(f'{qualifier}include:{include_domain}')
+        elif mechanism.startswith('ip4:'):
+            ip4 = mechanism[4:]
+            details['ip4_addresses'].append(ip4)
+            details['mechanisms'].append(f'{qualifier}ip4:{ip4}')
+        elif mechanism.startswith('ip6:'):
+            ip6 = mechanism[4:]
+            details['ip6_addresses'].append(ip6)
+            details['mechanisms'].append(f'{qualifier}ip6:{ip6}')
+        elif mechanism.startswith('a'):
+            if ':' in mechanism:
+                a_record = mechanism[2:]
+            else:
+                a_record = ''
+            details['a_records'].append(a_record)
+            details['mechanisms'].append(f'{qualifier}a{":"+a_record if a_record else ""}')
+        elif mechanism.startswith('mx'):
+            if ':' in mechanism:
+                mx_record = mechanism[3:]
+            else:
+                mx_record = ''
+            details['mx_records'].append(mx_record)
+            details['mechanisms'].append(f'{qualifier}mx{":"+mx_record if mx_record else ""}')
+        elif mechanism.startswith('exists:'):
+            exists_domain = mechanism[7:]
+            details['exists'].append(exists_domain)
+            details['mechanisms'].append(f'{qualifier}exists:{exists_domain}')
+        elif mechanism.startswith('redirect='):
+            details['redirect'] = mechanism[9:]
+        elif mechanism == 'all':
+            details['all_mechanism'] = qualifier + 'all'
+            details['mechanisms'].append(qualifier + 'all')
+        else:
+            # Other mechanisms
+            details['mechanisms'].append(qualifier + mechanism)
+    
+    return details
+
+
+def evaluate_spf_status(details):
+    """Evaluate SPF configuration and return Bad/Okay/Good"""
+    all_mechanism = details.get('all_mechanism', '')
+    mechanisms = details.get('mechanisms', [])
+    includes = details.get('includes', [])
+    
+    # Bad: No mechanisms or overly permissive
+    if not mechanisms:
+        return 'Bad'
+    
+    # Bad: +all (allows all senders)
+    if all_mechanism == '+all':
+        return 'Bad'
+    
+    # Bad: No all mechanism at all (implicit +all)
+    if not all_mechanism:
+        return 'Bad'
+    
+    # Good: Hard fail with proper mechanisms
+    if all_mechanism == '-all' and len(mechanisms) > 1:
+        return 'Good'
+    
+    # Good: Soft fail with comprehensive includes and mechanisms
+    if all_mechanism == '~all' and (len(includes) > 0 or len([m for m in mechanisms if 'ip4:' in m or 'mx' in m or 'a' in m]) > 0):
+        return 'Good'
+    
+    # Okay: Neutral or soft fail with some mechanisms
+    if all_mechanism in ['~all', '?all'] and len(mechanisms) > 1:
+        return 'Okay'
+    
+    # Default to Okay for other configurations
     return 'Okay'
 
 

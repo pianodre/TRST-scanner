@@ -4,7 +4,7 @@ API routes module for scanner endpoints.
 
 from flask import jsonify, request
 from auth import require_login
-from services.domain_services import whois_scan, easydmarc_scan, dmarc_scan
+from services.domain_services import whois_scan, easydmarc_scan, dmarc_scan, spf_scan
 from services.email_services import leakcheck_scan, hibp_scan, dehashed_scan
 from services.security_utils import assess_combined_risk, format_security_message
 
@@ -60,6 +60,11 @@ def dmarc_scan_route():
     return create_scan_route(dmarc_scan, {'domain': lambda d: d.get('domain', '').strip()})()
 
 
+def spf_scan_route():
+    """SPF Scanner - DNS-based SPF record analysis"""
+    return create_scan_route(spf_scan, {'domain': lambda d: d.get('domain', '').strip()})()
+
+
 @require_login
 def combined_scan():
     """
@@ -88,6 +93,15 @@ def combined_scan():
             email_result, _ = leakcheck_scan(email)
             if email_result.get('status') == 'success':
                 email_data = email_result
+            
+            # Add SPF check for email domain
+            if '@' in email:
+                email_domain = email.split('@')[1]
+                spf_result, _ = spf_scan(email_domain)
+                if spf_result.get('status') in ['Good', 'Okay', 'Bad']:
+                    if not email_data:
+                        email_data = {}
+                    email_data['spf_data'] = spf_result
         
         # Generate combined security assessment
         security_assessment = assess_combined_risk(domain_data, email_data)

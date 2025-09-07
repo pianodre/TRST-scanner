@@ -5,7 +5,7 @@ import os
 from auth import home_route, login_route, logout_route
 from api_routes import (
     hibp_scan_route, dehashed_scan_route, leakcheck_scan_route,
-    easydmarc_scan_route, whois_scan_route, dmarc_scan_route, combined_scan
+    easydmarc_scan_route, whois_scan_route, dmarc_scan_route, spf_scan_route, combined_scan
 )
 
 app = Flask(__name__)
@@ -53,6 +53,10 @@ def whois_scan():
 @app.route('/api/dmarc/scan', methods=['POST'])
 def dmarc_scan():
     return dmarc_scan_route()
+
+@app.route('/api/spf/scan', methods=['POST'])
+def spf_scan():
+    return spf_scan_route()
 
 @app.route('/api/scan/combined', methods=['POST'])
 def combined_scan_endpoint():
