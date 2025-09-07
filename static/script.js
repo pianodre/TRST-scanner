@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <div class="result-item">
-                    <strong>📧 SPF Analysis:</strong><br>
+                    <br><strong>📧 SPF Analysis:</strong><br>
                     <span class="status-indicator ${hasRecord}"></span>
                     <strong>Message:</strong> ${spfData.message || 'N/A'}<br>
                     ${spfData.record ? `<strong>Record:</strong> ${spfData.record}<br>` : ''}
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <div class="result-item">
-                    <strong>📧 SPF Analysis (${spfData.domain}):</strong><br>
+                    <br><strong>📧 SPF Analysis (${spfData.domain}):</strong><br>
                     <span class="status-indicator ${hasRecord}"></span>
                     <strong>Message:</strong> ${spfData.message || 'N/A'}<br>
                     ${spfData.record ? `<strong>Record:</strong> ${spfData.record}<br>` : ''}
