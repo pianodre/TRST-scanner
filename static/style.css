@@ -484,6 +484,181 @@ body {
     border-color: rgba(0, 195, 245, 0.4);
 }
 
+/* Visual Status Cards */
+.status-card {
+    background: linear-gradient(145deg, #222 0%, #1e1e1e 100%);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.status-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.status-visual {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.status-badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 2px solid;
+}
+
+.status-great {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: #ffffff;
+    border-color: #4CAF50;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.status-good {
+    background: linear-gradient(135deg, #00c3f5 0%, #0099cc 100%);
+    color: #ffffff;
+    border-color: #00c3f5;
+    box-shadow: 0 4px 12px rgba(0, 195, 245, 0.3);
+}
+
+.status-bad {
+    background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%);
+    color: #ffffff;
+    border-color: #ff4444;
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+}
+
+.status-icon {
+    font-size: 1.5rem;
+    margin-right: 8px;
+}
+
+.expand-btn {
+    background: rgba(0, 195, 245, 0.1);
+    border: 1px solid rgba(0, 195, 245, 0.3);
+    color: #00c3f5;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.expand-btn:hover {
+    background: rgba(0, 195, 245, 0.2);
+    border-color: rgba(0, 195, 245, 0.5);
+    transform: translateY(-1px);
+}
+
+.expand-btn.expanded {
+    background: rgba(0, 195, 245, 0.2);
+    border-color: rgba(0, 195, 245, 0.5);
+}
+
+.technical-details {
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border-left: 3px solid #00c3f5;
+    display: none;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #e0e0e0;
+}
+
+.technical-details.expanded {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 500px;
+        padding-top: 16px;
+        padding-bottom: 16px;
+    }
+}
+
+.summary-text {
+    color: #a0a0a0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.risk-overview {
+    background: linear-gradient(145deg, #2a2a2a 0%, #252525 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    border-left: 4px solid #00c3f5;
+}
+
+.risk-score {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.risk-level {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.risk-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.risk-factors {
+    color: #a0a0a0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
 .status-indicator {
     display: inline-block;
     width: 12px;

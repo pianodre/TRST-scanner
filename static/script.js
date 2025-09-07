@@ -212,71 +212,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const content = document.getElementById('domainContent');
         let html = '';
 
-        // WHOIS Information
-        if (whoisData && whoisData.status === 'success') {
-            html += `
-                <div class="result-item" style="margin-bottom: 20px;">
-                    <strong>🏢 WHOIS Information:</strong><br>
-                    <span class="status-indicator status-success"></span>
-                    <strong>Domain:</strong> ${whoisData.domain || 'N/A'}<br>
-                    <strong>Registrar:</strong> ${whoisData.registrar || 'N/A'}<br>
-                    <strong>Created:</strong> ${whoisData.creation_date || 'N/A'}<br>
-                    <strong>Expires:</strong> ${whoisData.expiration_date || 'N/A'}<br>
-                    ${whoisData.nameservers && whoisData.nameservers.length > 0 ? 
-                        `<strong>Nameservers:</strong> ${whoisData.nameservers.slice(0, 2).join(', ')}` : ''}
-                </div>
-            `;
-        } else {
-            html += `
-                <div class="result-item" style="margin-bottom: 20px;">
-                    <strong>🏢 WHOIS Information:</strong><br>
-                    <span class="status-indicator status-error"></span>
-                    Failed to retrieve WHOIS data
-                </div>
-            `;
-        }
+        // WHOIS Status Card
+        const whoisStatus = evaluateWhoisStatus(whoisData);
+        html += createStatusCard('🏢', 'Domain Registration', whoisStatus, 
+            getWhoisSummary(whoisData), getWhoisTechnicalDetails(whoisData));
 
-        // DMARC Information
-        if (dmarcData) {
-            const hasRecord = dmarcData.record ? 'status-success' : 'status-warning';
-            
-            html += `
-                <div class="result-item">
-                    <strong>🔒 DMARC Analysis:</strong><br>
-                    <span class="status-indicator ${hasRecord}"></span>
-                    <strong>Message:</strong> ${dmarcData.message || 'N/A'}<br>
-                    ${dmarcData.record ? `<strong>Record:</strong> ${dmarcData.record}<br>` : ''}
-                    ${dmarcData.details && dmarcData.details.policy ? 
-                        `<strong>Policy:</strong> ${dmarcData.details.policy}<br>` : ''}
-                    ${dmarcData.details && dmarcData.details.percentage ? 
-                        `<strong>Coverage:</strong> ${dmarcData.details.percentage}%<br>` : ''}
-                    ${dmarcData.details && dmarcData.details.reporting_uri ? 
-                        `<strong>Reporting:</strong> Configured<br>` : ''}
-                </div>
-            `;
-        }
+        // DMARC Status Card
+        const dmarcStatus = evaluateDmarcStatus(dmarcData);
+        html += createStatusCard('🔒', 'DMARC Policy', dmarcStatus, 
+            getDmarcSummary(dmarcData), getDmarcTechnicalDetails(dmarcData));
 
-        // SPF Information
-        if (spfData) {
-            const hasRecord = spfData.record ? 'status-success' : 'status-warning';
-            
-            html += `
-                <div class="result-item">
-                    <br><strong>📧 SPF Analysis:</strong><br>
-                    <span class="status-indicator ${hasRecord}"></span>
-                    <strong>Message:</strong> ${spfData.message || 'N/A'}<br>
-                    ${spfData.record ? `<strong>Record:</strong> ${spfData.record}<br>` : ''}
-                    ${spfData.details && spfData.details.all_mechanism ? 
-                        `<strong>All Mechanism:</strong> ${spfData.details.all_mechanism}<br>` : ''}
-                    ${spfData.details && spfData.details.includes && spfData.details.includes.length > 0 ? 
-                        `<strong>Includes:</strong> ${spfData.details.includes.slice(0, 3).join(', ')}${spfData.details.includes.length > 3 ? '...' : ''}<br>` : ''}
-                    ${spfData.details && spfData.details.ip4_addresses && spfData.details.ip4_addresses.length > 0 ? 
-                        `<strong>IP4 Addresses:</strong> ${spfData.details.ip4_addresses.slice(0, 2).join(', ')}${spfData.details.ip4_addresses.length > 2 ? '...' : ''}<br>` : ''}
-                </div>
-            `;
-        }
+        // SPF Status Card
+        const spfStatus = evaluateSpfStatus(spfData);
+        html += createStatusCard('📧', 'SPF Policy', spfStatus, 
+            getSpfSummary(spfData), getSpfTechnicalDetails(spfData));
 
         content.innerHTML = html;
+        
+        // Add click handlers for expand buttons
+        addExpandHandlers();
         
         // Show security assessment
         displaySecurityAssessment(whoisData, dmarcData, spfData);
@@ -289,48 +243,29 @@ document.addEventListener('DOMContentLoaded', function() {
         emailResults.style.display = 'block';
         securityResults.style.display = 'block';
         
-        // Display domain results
+        // Display domain results with new visual design
         const domainContent = document.getElementById('domainContent');
-        let domainHtml = '';
+        let html = '';
 
-        // WHOIS Information
-        if (whoisData && whoisData.status === 'success') {
-            domainHtml += `
-                <div class="result-item" style="margin-bottom: 15px;">
-                    <strong>🏢 WHOIS:</strong><br>
-                    <span class="status-indicator status-success"></span>
-                    ${whoisData.registrar || 'N/A'} | Expires: ${whoisData.expiration_date || 'N/A'}
-                </div>
-            `;
-        }
+        // WHOIS Status Card
+        const whoisStatus = evaluateWhoisStatus(whoisData);
+        html += createStatusCard('🏢', 'Domain Registration', whoisStatus, 
+            getWhoisSummary(whoisData), getWhoisTechnicalDetails(whoisData));
 
-        // DMARC Information
-        if (dmarcData) {
-            const hasRecord = dmarcData.record ? 'status-success' : 'status-warning';
-            
-            domainHtml += `
-                <div class="result-item">
-                    <strong>🔒 DMARC:</strong><br>
-                    <span class="status-indicator ${hasRecord}"></span>
-                    ${dmarcData.message || 'N/A'}
-                </div>
-            `;
-        }
+        // DMARC Status Card
+        const dmarcStatus = evaluateDmarcStatus(dmarcData);
+        html += createStatusCard('🔒', 'DMARC Policy', dmarcStatus, 
+            getDmarcSummary(dmarcData), getDmarcTechnicalDetails(dmarcData));
 
-        // SPF Information
-        if (spfData) {
-            const hasRecord = spfData.record ? 'status-success' : 'status-warning';
-            
-            domainHtml += `
-                <div class="result-item">
-                    <strong>📧 SPF:</strong><br>
-                    <span class="status-indicator ${hasRecord}"></span>
-                    ${spfData.message || 'N/A'}
-                </div>
-            `;
-        }
+        // SPF Status Card
+        const spfStatus = evaluateSpfStatus(spfData);
+        html += createStatusCard('📧', 'SPF Policy', spfStatus, 
+            getSpfSummary(spfData), getSpfTechnicalDetails(spfData));
 
-        domainContent.innerHTML = domainHtml;
+        domainContent.innerHTML = html;
+        
+        // Add click handlers for expand buttons
+        addExpandHandlers();
         
         // Display email results
         displayLeakCheckResults(emailData);
@@ -339,134 +274,292 @@ document.addEventListener('DOMContentLoaded', function() {
         displayCombinedSecurityAssessment(whoisData, dmarcData, spfData, emailData);
     }
 
+    // Helper functions for the new visual design
+    function createStatusCard(icon, title, status, summary, technicalDetails) {
+        const cardId = `card-${Math.random().toString(36).substr(2, 9)}`;
+        return `
+            <div class="status-card">
+                <div class="status-header">
+                    <div class="status-title">
+                        <span class="status-icon">${icon}</span>
+                        ${title}
+                    </div>
+                    <div class="status-visual">
+                        <span class="status-badge status-${status.level}">${status.text}</span>
+                        <button class="expand-btn" data-target="${cardId}">Details</button>
+                    </div>
+                </div>
+                <div class="summary-text">${summary}</div>
+                <div class="technical-details" id="${cardId}">
+                    ${technicalDetails}
+                </div>
+            </div>
+        `;
+    }
+
+    function evaluateWhoisStatus(whoisData) {
+        if (!whoisData || whoisData.status !== 'success') {
+            return { level: 'bad', text: 'Failed' };
+        }
+        
+        if (whoisData.security_assessment) {
+            const daysUntilExpiry = whoisData.security_assessment.days_until_expiry;
+            if (daysUntilExpiry !== null) {
+                if (daysUntilExpiry < 30) return { level: 'bad', text: 'Expires Soon' };
+                if (daysUntilExpiry < 90) return { level: 'good', text: 'Active' };
+                return { level: 'great', text: 'Secure' };
+            }
+        }
+        
+        return { level: 'good', text: 'Active' };
+    }
+
+    function evaluateDmarcStatus(dmarcData) {
+        if (!dmarcData || !dmarcData.record) {
+            return { level: 'bad', text: 'Not Found' };
+        }
+        
+        // Check if policy exists in details, if not try to parse from record
+        let policy = dmarcData.details?.policy;
+        
+        if (!policy && dmarcData.record) {
+            // Try to extract policy from the record directly
+            const policyMatch = dmarcData.record.match(/p=([^;"\s]+)/i);
+            if (policyMatch) {
+                policy = policyMatch[1].toLowerCase();
+            }
+        }
+        
+        if (policy) {
+            if (policy === 'reject') return { level: 'great', text: 'Strict' };
+            if (policy === 'quarantine') return { level: 'good', text: 'Moderate' };
+            if (policy === 'none') return { level: 'bad', text: 'Monitoring' };
+        }
+        
+        return { level: 'good', text: 'Configured' };
+    }
+
+    function evaluateSpfStatus(spfData) {
+        if (!spfData || !spfData.record) {
+            return { level: 'bad', text: 'Not Found' };
+        }
+        
+        // Check if all_mechanism exists in details, if not try to parse from record
+        let allMechanism = spfData.details?.all_mechanism;
+        
+        if (!allMechanism && spfData.record) {
+            // Try to extract from the record directly
+            const recordMatch = spfData.record.match(/([~+-]?)all\b/);
+            if (recordMatch) {
+                allMechanism = (recordMatch[1] || '+') + 'all';
+            }
+        }
+        
+        if (allMechanism) {
+            if (allMechanism === '-all') return { level: 'great', text: 'Strict' };
+            if (allMechanism === '~all') return { level: 'good', text: 'Moderate' };
+            if (allMechanism === '+all') return { level: 'bad', text: 'Permissive' };
+        }
+        
+        return { level: 'good', text: 'Configured' };
+    }
+
+    function getWhoisSummary(whoisData) {
+        if (!whoisData || whoisData.status !== 'success') {
+            return 'Unable to retrieve domain registration information.';
+        }
+        
+        const registrar = whoisData.registrar || 'Unknown registrar';
+        const expires = whoisData.expiration_date || 'Unknown expiration';
+        return `Domain registered with ${registrar}. Expires: ${expires}`;
+    }
+
+    function getDmarcSummary(dmarcData) {
+        if (!dmarcData || !dmarcData.record) {
+            return 'No DMARC policy found. Email spoofing protection is not configured.';
+        }
+        
+        // Check if policy exists in details, if not try to parse from record
+        let policy = dmarcData.details?.policy;
+        
+        if (!policy && dmarcData.record) {
+            // Try to extract policy from the record directly
+            const policyMatch = dmarcData.record.match(/p=([^;"\s]+)/i);
+            if (policyMatch) {
+                policy = policyMatch[1].toLowerCase();
+            } else {
+                policy = 'unknown';
+            }
+        }
+        
+        return `DMARC policy set to "${policy || 'unknown'}". Email authentication is configured.`;
+    }
+
+    function getSpfSummary(spfData) {
+        if (!spfData || !spfData.record) {
+            return 'No SPF record found. Sender authentication is not configured.';
+        }
+        
+        // Check if all_mechanism exists in details, if not try to parse from record
+        let mechanism = spfData.details?.all_mechanism;
+        
+        if (!mechanism && spfData.record) {
+            // Try to extract from the record directly
+            const recordMatch = spfData.record.match(/([~+-]?)all\b/);
+            if (recordMatch) {
+                mechanism = (recordMatch[1] || '+') + 'all';
+            } else {
+                mechanism = 'unknown';
+            }
+        }
+        
+        const includeCount = spfData.details?.includes?.length || 0;
+        return `SPF policy "${mechanism || 'unknown'}" with ${includeCount} authorized mail services.`;
+    }
+
+    function getWhoisTechnicalDetails(whoisData) {
+        if (!whoisData || whoisData.status !== 'success') {
+            return `<strong>Error:</strong> ${whoisData?.error || 'Failed to retrieve WHOIS data'}`;
+        }
+        
+        return `
+            <strong>Domain:</strong> ${whoisData.domain || 'N/A'}<br>
+            <strong>Registrar:</strong> ${whoisData.registrar || 'N/A'}<br>
+            <strong>Created:</strong> ${whoisData.creation_date || 'N/A'}<br>
+            <strong>Expires:</strong> ${whoisData.expiration_date || 'N/A'}<br>
+            <strong>Updated:</strong> ${whoisData.updated_date || 'N/A'}<br>
+            ${whoisData.nameservers && whoisData.nameservers.length > 0 ? 
+                `<strong>Nameservers:</strong> ${whoisData.nameservers.join(', ')}` : ''}
+        `;
+    }
+
+    function getDmarcTechnicalDetails(dmarcData) {
+        if (!dmarcData || !dmarcData.record) {
+            return `<strong>Message:</strong> ${dmarcData?.message || 'No DMARC record found'}`;
+        }
+        
+        return `
+            <strong>Record:</strong> ${dmarcData.record}<br>
+            <strong>Policy:</strong> ${dmarcData.details?.policy || 'N/A'}<br>
+            <strong>Percentage:</strong> ${dmarcData.details?.percentage || 'N/A'}%<br>
+            <strong>Subdomain Policy:</strong> ${dmarcData.details?.subdomain_policy || 'N/A'}<br>
+            <strong>Reporting URI:</strong> ${dmarcData.details?.reporting_uri || 'Not configured'}<br>
+            <strong>Forensic URI:</strong> ${dmarcData.details?.forensic_uri || 'Not configured'}
+        `;
+    }
+
+    function getSpfTechnicalDetails(spfData) {
+        if (!spfData || !spfData.record) {
+            return `<strong>Message:</strong> ${spfData?.message || 'No SPF record found'}`;
+        }
+        
+        return `
+            <strong>Record:</strong> ${spfData.record}<br>
+            <strong>All Mechanism:</strong> ${spfData.details?.all_mechanism || 'N/A'}<br>
+            <strong>Includes:</strong> ${spfData.details?.includes?.join(', ') || 'None'}<br>
+            <strong>IP4 Addresses:</strong> ${spfData.details?.ip4_addresses?.join(', ') || 'None'}<br>
+            <strong>IP6 Addresses:</strong> ${spfData.details?.ip6_addresses?.join(', ') || 'None'}<br>
+            <strong>MX Records:</strong> ${spfData.details?.mx_records?.join(', ') || 'None'}
+        `;
+    }
+
+    function addExpandHandlers() {
+        document.querySelectorAll('.expand-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const details = document.getElementById(targetId);
+                
+                if (details.classList.contains('expanded')) {
+                    details.classList.remove('expanded');
+                    this.textContent = 'Details';
+                    this.classList.remove('expanded');
+                } else {
+                    details.classList.add('expanded');
+                    this.textContent = 'Hide';
+                    this.classList.add('expanded');
+                }
+            });
+        });
+    }
+
     // Function to display security assessment for domain-only scans
     function displaySecurityAssessment(whoisData, dmarcData, spfData) {
         const content = document.getElementById('securityContent');
-        let html = '';
         
         let riskScore = 0;
         let threats = [];
         
         // Assess WHOIS risk
         if (whoisData && whoisData.status === 'success') {
-            riskScore += 25;
-            if (whoisData.security_assessment) {
-                if (whoisData.security_assessment.days_until_expiry < 30) {
+            if (whoisData.security_assessment && whoisData.security_assessment.days_until_expiry !== null) {
+                const daysUntilExpiry = whoisData.security_assessment.days_until_expiry;
+                if (daysUntilExpiry < 30) {
+                    riskScore += 30;
                     threats.push('Domain expires soon');
-                } else {
-                    riskScore += 15;
+                } else if (daysUntilExpiry < 90) {
+                    riskScore += 10;
+                    threats.push('Domain expires within 90 days');
                 }
             }
         } else {
-            threats.push('WHOIS data unavailable');
+            riskScore += 20;
+            threats.push('Unable to verify domain registration');
         }
         
         // Assess DMARC risk
-        if (dmarcData) {
-            if (dmarcData.record) {
-                riskScore += 25;
-                if (dmarcData.details && dmarcData.details.policy === 'none') {
-                    threats.push('DMARC policy set to none');
-                    riskScore -= 10;
-                }
-            } else {
-                threats.push('No DMARC record found');
-            }
+        if (!dmarcData || !dmarcData.record) {
+            riskScore += 25;
+            threats.push('No DMARC policy - vulnerable to email spoofing');
+        } else if (dmarcData.details && dmarcData.details.policy === 'none') {
+            riskScore += 15;
+            threats.push('DMARC policy set to monitoring only');
         }
         
         // Assess SPF risk
-        if (spfData) {
-            if (spfData.record) {
-                riskScore += 20;
-                if (spfData.details && spfData.details.all_mechanism === '+all') {
-                    threats.push('SPF allows all senders');
-                    riskScore -= 15;
-                }
-            } else {
-                threats.push('No SPF record found');
-            }
-        }
-        
-        const finalRisk = Math.max(0, 100 - riskScore);
-        const riskLevel = finalRisk > 70 ? 'High' : finalRisk > 40 ? 'Medium' : 'Low';
-        const riskClass = finalRisk > 70 ? 'status-error' : finalRisk > 40 ? 'status-warning' : 'status-success';
-        
-        html += `
-            <div class="result-item">
-                <strong>📊 Security Assessment:</strong><br>
-                <span class="status-indicator ${riskClass}"></span>
-                <strong>Risk Level:</strong> ${riskLevel} (${finalRisk}/100)<br>
-                ${threats.length > 0 ? `<strong>Issues:</strong> ${threats.join(', ')}` : '<strong>Status:</strong> No major issues detected'}
-            </div>
-        `;
-        
-        content.innerHTML = html;
-    }
-
-    // Function to display combined security assessment
-    function displayCombinedSecurityAssessment(whoisData, dmarcData, spfData, emailData) {
-        const content = document.getElementById('securityContent');
-        let html = '';
-        
-        let riskScore = 0;
-        let threats = [];
-        
-        // Domain assessment
-        if (whoisData && whoisData.status === 'success') {
+        if (!spfData || !spfData.record) {
+            riskScore += 25;
+            threats.push('No SPF record - sender authentication not configured');
+        } else if (spfData.details && spfData.details.all_mechanism === '+all') {
             riskScore += 20;
+            threats.push('SPF policy allows all senders - very permissive');
+        }
+        
+        // Determine risk level
+        let riskLevel = 'Low Risk';
+        let riskClass = 'status-great';
+        if (riskScore >= 60) {
+            riskLevel = 'High Risk';
+            riskClass = 'status-bad';
+        } else if (riskScore >= 30) {
+            riskLevel = 'Medium Risk';
+            riskClass = 'status-good';
+        }
+        
+        let html = `
+            <div class="risk-overview">
+                <div class="risk-score">
+                    <div class="risk-level">${riskLevel}</div>
+                    <div class="risk-number ${riskClass}">${riskScore}/100</div>
+                </div>
+                <div class="risk-factors">
+        `;
+        
+        if (threats.length > 0) {
+            html += 'Security concerns identified:<br>';
+            threats.forEach(threat => {
+                html += `• ${threat}<br>`;
+            });
         } else {
-            threats.push('WHOIS issues');
+            html += '✅ No significant security threats detected. Domain appears well-configured.';
         }
-        
-        if (dmarcData) {
-            if (dmarcData.record) {
-                riskScore += 20;
-                if (dmarcData.details && dmarcData.details.policy === 'none') {
-                    threats.push('DMARC policy set to none');
-                    riskScore -= 10;
-                }
-            } else {
-                threats.push('DMARC issues');
-            }
-        }
-        
-        if (spfData) {
-            if (spfData.record) {
-                riskScore += 15;
-                if (spfData.details && spfData.details.all_mechanism === '+all') {
-                    threats.push('SPF allows all senders');
-                    riskScore -= 10;
-                }
-            } else {
-                threats.push('SPF issues');
-            }
-        }
-        
-        // Email assessment
-        if (emailData && emailData.status === 'success') {
-            if (emailData.found && emailData.found.length > 0) {
-                threats.push('Email found in breaches');
-            } else {
-                riskScore += 25;
-            }
-        }
-        
-        const finalRisk = Math.max(0, 100 - riskScore);
-        const riskLevel = finalRisk > 70 ? 'High' : finalRisk > 40 ? 'Medium' : 'Low';
-        const riskClass = finalRisk > 70 ? 'status-error' : finalRisk > 40 ? 'status-warning' : 'status-success';
         
         html += `
-            <div class="result-item">
-                <strong>📊 Combined Security Assessment:</strong><br>
-                <span class="status-indicator ${riskClass}"></span>
-                <strong>Overall Risk:</strong> ${riskLevel} (${finalRisk}/100)<br>
-                ${threats.length > 0 ? `<strong>Issues:</strong> ${threats.join(', ')}` : '<strong>Status:</strong> All checks passed'}
+                </div>
             </div>
         `;
         
         content.innerHTML = html;
     }
-
 
     function displayEmailResults(emailData, spfData = null) {
         resultsSection.style.display = 'block';
