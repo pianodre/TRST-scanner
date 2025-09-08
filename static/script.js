@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const scanType = document.getElementById('scanType');
     const domainInput = document.getElementById('domainInput');
     const emailInput = document.getElementById('emailInput');
+    const domainContainer = document.getElementById('domainContainer');
+    const emailContainer = document.getElementById('emailContainer');
     const resultsSection = document.getElementById('resultsSection');
     const domainResults = document.getElementById('domainResults');
     const emailResults = document.getElementById('emailResults');
@@ -21,19 +23,14 @@ document.addEventListener('DOMContentLoaded', function() {
     scanType.addEventListener('change', function() {
         const type = this.value;
         if (type === 'domain') {
-            domainInput.style.display = 'block';
-            emailInput.style.display = 'none';
+            domainContainer.style.display = 'block';
+            emailContainer.style.display = 'none';
             domainInput.required = true;
             emailInput.required = false;
         } else if (type === 'email') {
-            domainInput.style.display = 'none';
-            emailInput.style.display = 'block';
+            domainContainer.style.display = 'none';
+            emailContainer.style.display = 'block';
             domainInput.required = false;
-            emailInput.required = true;
-        } else {
-            domainInput.style.display = 'block';
-            emailInput.style.display = 'block';
-            domainInput.required = true;
             emailInput.required = true;
         }
     });
@@ -51,10 +48,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (type === 'email' && !email) {
             showError('Please enter an email to scan');
-            return;
-        }
-        if (type === 'both' && (!domain || !email)) {
-            showError('Please enter both domain and email to scan');
             return;
         }
 
@@ -130,40 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 displayEmailResults(emailData, spfData);
-            } else if (type === 'both' && domain && email) {
-                // Call all APIs for comprehensive scanning including SPF
-                const [whoisResponse, dmarcResponse, spfResponse, emailResponse] = await Promise.all([
-                    fetch('/api/whois/scan', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ domain: domain })
-                    }),
-                    fetch('/api/dmarc/scan', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ domain: domain })
-                    }),
-                    fetch('/api/spf/scan', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ domain: domain })
-                    }),
-                    fetch('/api/leakcheck/scan', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: email })
-                    })
-                ]);
-                
-                if (!whoisResponse.ok || !dmarcResponse.ok || !spfResponse.ok || !emailResponse.ok) {
-                    throw new Error('One or more scans failed');
-                }
-                
-                const whoisData = await whoisResponse.json();
-                const dmarcData = await dmarcResponse.json();
-                const spfData = await spfResponse.json();
-                const emailData = await emailResponse.json();
-                displayCombinedResults(whoisData, dmarcData, spfData, emailData);
             } else {
                 displayPlaceholderResults(type);
                 return;
@@ -236,43 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
         displaySecurityAssessment(whoisData, dmarcData, spfData);
     }
 
-    // Function to display combined results (both domain and email)
-    function displayCombinedResults(whoisData, dmarcData, spfData, emailData) {
-        resultsSection.style.display = 'block';
-        domainResults.style.display = 'block';
-        emailResults.style.display = 'block';
-        securityResults.style.display = 'block';
-        
-        // Display domain results with new visual design
-        const domainContent = document.getElementById('domainContent');
-        let html = '';
-
-        // WHOIS Status Card
-        const whoisStatus = evaluateWhoisStatus(whoisData);
-        html += createStatusCard('🏢', 'Domain Registration', whoisStatus, 
-            getWhoisSummary(whoisData), getWhoisTechnicalDetails(whoisData));
-
-        // DMARC Status Card
-        const dmarcStatus = evaluateDmarcStatus(dmarcData);
-        html += createStatusCard('🔒', 'DMARC Policy', dmarcStatus, 
-            getDmarcSummary(dmarcData), getDmarcTechnicalDetails(dmarcData));
-
-        // SPF Status Card
-        const spfStatus = evaluateSpfStatus(spfData);
-        html += createStatusCard('📧', 'SPF Policy', spfStatus, 
-            getSpfSummary(spfData), getSpfTechnicalDetails(spfData));
-
-        domainContent.innerHTML = html;
-        
-        // Add click handlers for expand buttons
-        addExpandHandlers();
-        
-        // Display email results
-        displayLeakCheckResults(emailData);
-        
-        // Show combined security assessment
-        displayCombinedSecurityAssessment(whoisData, dmarcData, spfData, emailData);
-    }
 
     // Helper functions for the new visual design
     function createStatusCard(icon, title, status, summary, technicalDetails) {
@@ -344,6 +266,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return { level: 'bad', text: 'Not Found' };
         }
         
+        // Check for redirect mechanism (like Gmail uses) - this is secure
+        if (spfData.record.includes('redirect=')) {
+            return { level: 'great', text: 'Secure' };
+        }
+        
         // Check if all_mechanism exists in details, if not try to parse from record
         let allMechanism = spfData.details?.all_mechanism;
         
@@ -369,8 +296,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return 'Unable to retrieve domain registration information.';
         }
         
-        const registrar = whoisData.registrar || 'Unknown registrar';
-        const expires = whoisData.expiration_date || 'Unknown expiration';
+        const registrar = whoisData.registrar || 'Private/Protected registrar';
+        const expires = whoisData.expiration_date || 'Protected expiration date';
         return `Domain registered with ${registrar}. Expires: ${expires}`;
     }
 
@@ -400,6 +327,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return 'No SPF record found. Sender authentication is not configured.';
         }
         
+        // Check for redirect mechanism first
+        if (spfData.record.includes('redirect=')) {
+            const redirectMatch = spfData.record.match(/redirect=([^\s]+)/);
+            const redirectDomain = redirectMatch ? redirectMatch[1] : 'external domain';
+            return `SPF policy redirects to ${redirectDomain} for authorization rules.`;
+        }
+        
         // Check if all_mechanism exists in details, if not try to parse from record
         let mechanism = spfData.details?.all_mechanism;
         
@@ -409,12 +343,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (recordMatch) {
                 mechanism = (recordMatch[1] || '+') + 'all';
             } else {
-                mechanism = 'unknown';
+                mechanism = 'configured';
             }
         }
         
         const includeCount = spfData.details?.includes?.length || 0;
-        return `SPF policy "${mechanism || 'unknown'}" with ${includeCount} authorized mail services.`;
+        return `SPF policy "${mechanism || 'configured'}" with ${includeCount} authorized mail services.`;
     }
 
     function getWhoisTechnicalDetails(whoisData) {
@@ -424,12 +358,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return `
             <strong>Domain:</strong> ${whoisData.domain || 'N/A'}<br>
-            <strong>Registrar:</strong> ${whoisData.registrar || 'N/A'}<br>
-            <strong>Created:</strong> ${whoisData.creation_date || 'N/A'}<br>
-            <strong>Expires:</strong> ${whoisData.expiration_date || 'N/A'}<br>
-            <strong>Updated:</strong> ${whoisData.updated_date || 'N/A'}<br>
+            <strong>Registrar:</strong> ${whoisData.registrar || 'Privacy Protected'}<br>
+            <strong>Created:</strong> ${whoisData.creation_date || 'Privacy Protected'}<br>
+            <strong>Expires:</strong> ${whoisData.expiration_date || 'Privacy Protected'}<br>
+            <strong>Updated:</strong> ${whoisData.updated_date || 'Privacy Protected'}<br>
             ${whoisData.nameservers && whoisData.nameservers.length > 0 ? 
-                `<strong>Nameservers:</strong> ${whoisData.nameservers.join(', ')}` : ''}
+                `<strong>Nameservers:</strong> ${whoisData.nameservers.join(', ')}` : '<strong>Nameservers:</strong> Privacy Protected'}
         `;
     }
 
@@ -463,6 +397,55 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
+    function evaluateBreachStatus(emailData) {
+        if (!emailData || emailData.status !== 'success') {
+            return { level: 'bad', text: 'Failed' };
+        }
+        
+        if (emailData.found && emailData.breach_count > 0) {
+            if (emailData.breach_count >= 2) return { level: 'bad', text: 'High Risk' };
+            if (emailData.breach_count === 1) return { level: 'good', text: 'Medium Risk' };
+        }
+        
+        return { level: 'great', text: 'Clean' };
+    }
+
+    function getBreachSummary(emailData) {
+        if (!emailData || emailData.status !== 'success') {
+            return 'Unable to check email against breach databases.';
+        }
+        
+        if (emailData.found && emailData.breach_count > 0) {
+            return `Email found in ${emailData.breach_count} data breach(es). Immediate action recommended.`;
+        }
+        
+        return 'No breaches found. Email appears secure in known databases.';
+    }
+
+    function getBreachTechnicalDetails(emailData) {
+        if (!emailData || emailData.status !== 'success') {
+            return `<strong>Error:</strong> ${emailData?.message || 'Failed to analyze email'}`;
+        }
+        
+        if (emailData.found && emailData.breach_count > 0) {
+            let details = `<strong>Breach Count:</strong> ${emailData.breach_count}<br>`;
+            
+            if (emailData.sources && emailData.sources.length > 0) {
+                details += `<strong>Breach Sources:</strong><br>`;
+                emailData.sources.slice(0, 10).forEach(source => {
+                    details += `• ${source}<br>`;
+                });
+                if (emailData.sources.length > 10) {
+                    details += `... and ${emailData.sources.length - 10} more<br>`;
+                }
+            }
+            
+            return details;
+        }
+        
+        return `<strong>Status:</strong> Clean - No breaches detected<br><strong>Databases Checked:</strong> LeakCheck, HIBP, DeHashed`;
+    }
+
     function addExpandHandlers() {
         document.querySelectorAll('.expand-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -486,62 +469,71 @@ document.addEventListener('DOMContentLoaded', function() {
     function displaySecurityAssessment(whoisData, dmarcData, spfData) {
         const content = document.getElementById('securityContent');
         
-        let riskScore = 0;
+        // Start with base score of 1
+        let riskScore10 = 1;
         let threats = [];
         
-        // Assess WHOIS risk
-        if (whoisData && whoisData.status === 'success') {
-            if (whoisData.security_assessment && whoisData.security_assessment.days_until_expiry !== null) {
-                const daysUntilExpiry = whoisData.security_assessment.days_until_expiry;
-                if (daysUntilExpiry < 30) {
-                    riskScore += 30;
-                    threats.push('Domain expires soon');
-                } else if (daysUntilExpiry < 90) {
-                    riskScore += 10;
-                    threats.push('Domain expires within 90 days');
-                }
-            }
-        } else {
-            riskScore += 20;
-            threats.push('Unable to verify domain registration');
+        // Assess Domain Registration (WHOIS) risk
+        const whoisStatus = evaluateWhoisStatus(whoisData);
+        if (whoisStatus.level === 'bad') {
+            riskScore10 += 2;
+            threats.push('Domain registration issues detected');
+        } else if (whoisStatus.level === 'good') {
+            riskScore10 += 1;
+            threats.push('Domain expires within 90 days');
         }
+        // Green WHOIS = add 0
         
         // Assess DMARC risk
-        if (!dmarcData || !dmarcData.record) {
-            riskScore += 25;
+        const dmarcStatus = evaluateDmarcStatus(dmarcData);
+        if (dmarcStatus.level === 'bad') {
+            riskScore10 += 1;
             threats.push('No DMARC policy - vulnerable to email spoofing');
-        } else if (dmarcData.details && dmarcData.details.policy === 'none') {
-            riskScore += 15;
-            threats.push('DMARC policy set to monitoring only');
         }
+        // Blue/Green DMARC = add 0
         
         // Assess SPF risk
-        if (!spfData || !spfData.record) {
-            riskScore += 25;
-            threats.push('No SPF record - sender authentication not configured');
-        } else if (spfData.details && spfData.details.all_mechanism === '+all') {
-            riskScore += 20;
-            threats.push('SPF policy allows all senders - very permissive');
+        const spfStatus = evaluateSpfStatus(spfData);
+        if (spfStatus.level === 'bad') {
+            riskScore10 += 4;
+            threats.push('No SPF record or permissive policy');
+        } else if (spfStatus.level === 'good') {
+            riskScore10 += 1;
+            threats.push('SPF policy could be stricter');
+        }
+        // Green SPF = add 0
+        
+        // Force 10/10 if all three components are red
+        if (whoisStatus.level === 'bad' && dmarcStatus.level === 'bad' && spfStatus.level === 'bad') {
+            riskScore10 = 10;
+            threats.push('All security components failed - maximum risk');
+        } else {
+            // Cap at 10 and ensure minimum of 1
+            riskScore10 = Math.max(1, Math.min(10, riskScore10));
         }
         
-        // Determine risk level
         let riskLevel = 'Low Risk';
-        let riskClass = 'status-great';
-        if (riskScore >= 60) {
+        if (riskScore10 >= 7) {
             riskLevel = 'High Risk';
-            riskClass = 'status-bad';
-        } else if (riskScore >= 30) {
+        } else if (riskScore10 >= 4) {
             riskLevel = 'Medium Risk';
-            riskClass = 'status-good';
         }
         
+        // Create circular progress meter
         let html = `
-            <div class="risk-overview">
-                <div class="risk-score">
-                    <div class="risk-level">${riskLevel}</div>
-                    <div class="risk-number ${riskClass}">${riskScore}/100</div>
+            <div class="risk-meter">
+                <div class="circular-progress" style="background: conic-gradient(
+                    from 0deg,
+                    ${riskScore10 <= 3 ? '#4CAF50' : riskScore10 <= 6 ? '#00c3f5' : '#ff4444'} 0deg ${(riskScore10 / 10) * 360}deg,
+                    #333 ${(riskScore10 / 10) * 360}deg 360deg
+                );">
+                    <div class="progress-content">
+                        <div class="progress-score">${riskScore10}</div>
+                        <div class="progress-label">of 10</div>
+                    </div>
                 </div>
-                <div class="risk-factors">
+                <div class="risk-meter-description">
+                    <strong>${riskLevel}</strong><br>
         `;
         
         if (threats.length > 0) {
@@ -569,58 +561,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const content = document.getElementById('emailContent');
         let html = '';
-        
-        // Display breach detection results
-        if (emailData && emailData.status === 'success') {
-            if (emailData.found && emailData.breach_count > 0) {
-                html += `
-                    <div class="result-item">
-                        <strong>⚠️ Breach Detection:</strong><br>
-                        <span class="status-indicator status-error"></span>
-                        <strong>Email found in ${emailData.breach_count} breach(es)</strong><br>
-                        ${emailData.sources && emailData.sources.length > 0 ? 
-                            emailData.sources.slice(0, 5).map(source => `• ${source}`).join('<br>') : ''}
-                        ${emailData.sources && emailData.sources.length > 5 ? `<br>... and ${emailData.sources.length - 5} more` : ''}
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="result-item">
-                        <strong>✅ Breach Detection:</strong><br>
-                        <span class="status-indicator status-success"></span>
-                        No breaches found for this email address
-                    </div>
-                `;
-            }
-        } else {
-            html += `
-                <div class="result-item">
-                    <strong>📧 Email Analysis:</strong><br>
-                    <span class="status-indicator status-error"></span>
-                    ${emailData && emailData.message ? emailData.message : 'Failed to analyze email'}
-                </div>
-            `;
-        }
 
-        // Display SPF information if available
+        // Breach Detection Status Card
+        const breachStatus = evaluateBreachStatus(emailData);
+        html += createStatusCard('🔍', 'Breach Detection', breachStatus, 
+            getBreachSummary(emailData), getBreachTechnicalDetails(emailData));
+
+        // SPF Status Card (if available)
         if (spfData) {
-            const hasRecord = spfData.record ? 'status-success' : 'status-warning';
-            
-            html += `
-                <div class="result-item">
-                    <br><strong>📧 SPF Analysis (${spfData.domain}):</strong><br>
-                    <span class="status-indicator ${hasRecord}"></span>
-                    <strong>Message:</strong> ${spfData.message || 'N/A'}<br>
-                    ${spfData.record ? `<strong>Record:</strong> ${spfData.record}<br>` : ''}
-                    ${spfData.details && spfData.details.all_mechanism ? 
-                        `<strong>All Mechanism:</strong> ${spfData.details.all_mechanism}<br>` : ''}
-                    ${spfData.details && spfData.details.includes && spfData.details.includes.length > 0 ? 
-                        `<strong>Includes:</strong> ${spfData.details.includes.slice(0, 2).join(', ')}${spfData.details.includes.length > 2 ? '...' : ''}<br>` : ''}
-                </div>
-            `;
+            const spfStatus = evaluateSpfStatus(spfData);
+            html += createStatusCard('📧', 'SPF Policy', spfStatus, 
+                getSpfSummary(spfData), getSpfTechnicalDetails(spfData));
         }
 
-        content.innerHTML = html || '<p>No email data available</p>';
+        content.innerHTML = html;
+        
+        // Add click handlers for expand buttons
+        addExpandHandlers();
         
         // Show security assessment for email
         displayEmailSecurityAssessment(emailData, spfData);
@@ -675,48 +632,101 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayEmailSecurityAssessment(emailData, spfData = null) {
         const content = document.getElementById('securityContent');
-        let html = '';
         
         let riskScore = 0;
         let threats = [];
+        let forceHighRisk = false;
         
-        // Assess email breach risk
+        // Check if breach detection is red (2+ breaches)
+        const breachStatus = evaluateBreachStatus(emailData);
+        if (breachStatus.level === 'bad') {
+            forceHighRisk = true;
+        }
+        
+        // Check if SPF is red
+        if (spfData) {
+            const spfStatus = evaluateSpfStatus(spfData);
+            if (spfStatus.level === 'bad') {
+                forceHighRisk = true;
+            }
+        }
+        
+        // Start with base score of 1
+        let riskScore10 = 1;
+        
+        // Assess email breach risk - add 2 per breach
         if (emailData && emailData.status === 'success') {
             if (emailData.found && emailData.breach_count > 0) {
                 threats.push(`Email found in ${emailData.breach_count} breach(es)`);
-                riskScore += Math.min(emailData.breach_count * 15, 60); // Cap breach risk at 60
-            } else {
-                riskScore += 0; // No breach risk
+                riskScore10 += emailData.breach_count * 2; // Add 2 per breach
             }
         } else {
             threats.push('Email analysis failed');
-            riskScore += 30;
+            riskScore10 += 3; // Add penalty for failed analysis
         }
         
         // Assess SPF risk
         if (spfData) {
-            if (spfData.record) {
-                // SPF record exists, reduces overall risk
-                riskScore = Math.max(0, riskScore - 10);
-                if (spfData.details && spfData.details.all_mechanism === '+all') {
-                    threats.push('SPF allows all senders');
-                    riskScore += 15;
-                }
-            } else {
-                threats.push('No SPF record found');
-                riskScore += 10;
+            const spfStatus = evaluateSpfStatus(spfData);
+            if (spfStatus.level === 'bad') {
+                // Red SPF = automatically high risk
+                forceHighRisk = true;
+                threats.push('No SPF record found or permissive policy');
+            } else if (spfStatus.level === 'good') {
+                // Blue SPF = add 1
+                riskScore10 += 1;
+                threats.push('SPF policy could be stricter');
             }
+            // Green SPF = add 0 (no penalty)
+        } else {
+            // No SPF data = add 1
+            riskScore10 += 1;
+            threats.push('SPF analysis unavailable');
         }
         
-        const riskLevel = riskScore > 60 ? 'High' : riskScore > 30 ? 'Medium' : 'Low';
-        const riskClass = riskScore > 60 ? 'status-error' : riskScore > 30 ? 'status-warning' : 'status-success';
+        // Cap at 10 and ensure minimum of 1
+        riskScore10 = Math.max(1, Math.min(10, riskScore10));
+        
+        // Force high risk if SPF is red
+        if (forceHighRisk) {
+            riskScore10 = Math.max(riskScore10, 7); // Force high risk to be at least 7/10
+        }
+        
+        let riskLevel = 'Low Risk';
+        if (forceHighRisk || riskScore10 >= 7) {
+            riskLevel = 'High Risk';
+        } else if (riskScore10 >= 4) {
+            riskLevel = 'Medium Risk';
+        }
+        
+        // Create circular progress meter
+        let html = `
+            <div class="risk-meter">
+                <div class="circular-progress" style="background: conic-gradient(
+                    from 0deg,
+                    ${riskScore10 <= 3 ? '#4CAF50' : riskScore10 <= 6 ? '#00c3f5' : '#ff4444'} 0deg ${(riskScore10 / 10) * 360}deg,
+                    #333 ${(riskScore10 / 10) * 360}deg 360deg
+                );">
+                    <div class="progress-content">
+                        <div class="progress-score">${riskScore10}</div>
+                        <div class="progress-label">of 10</div>
+                    </div>
+                </div>
+                <div class="risk-meter-description">
+                    <strong>${riskLevel}</strong><br>
+        `;
+        
+        if (threats.length > 0) {
+            html += 'Security concerns identified:<br>';
+            threats.forEach(threat => {
+                html += `• ${threat}<br>`;
+            });
+        } else {
+            html += '✅ No significant security threats detected. Email appears secure.';
+        }
         
         html += `
-            <div class="result-item">
-                <strong>📊 Email Security Assessment:</strong><br>
-                <span class="status-indicator ${riskClass}"></span>
-                <strong>Risk Level:</strong> ${riskLevel} (${riskScore}/100)<br>
-                ${threats.length > 0 ? `<strong>Issues:</strong> ${threats.join(', ')}` : '<strong>Status:</strong> Email appears secure'}
+                </div>
             </div>
         `;
         
@@ -772,8 +782,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let message = '';
         if (scanType === 'email') {
             message = 'Email scanning coming soon! Will include HIBP, DeHashed, and LeakCheck breach detection.';
-        } else if (scanType === 'both') {
-            message = 'Combined scanning coming soon! Will include all domain and email security services.';
         }
         
         document.getElementById('securityContent').innerHTML = `

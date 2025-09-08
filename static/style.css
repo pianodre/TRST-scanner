@@ -685,6 +685,69 @@ body {
     box-shadow: 0 0 8px rgba(95, 184, 230, 0.4);
 }
 
+/* Circular Risk Meter */
+.risk-meter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.circular-progress {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        #4CAF50 0deg 108deg,
+        #00c3f5 108deg 216deg,
+        #ff4444 216deg 360deg
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circular-progress::before {
+    content: '';
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: #1a1a1a;
+}
+
+.progress-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: #ffffff;
+}
+
+.progress-score {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.progress-label {
+    font-size: 0.7rem;
+    color: #a0a0a0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.risk-meter-description {
+    margin-top: 16px;
+    text-align: center;
+    color: #a0a0a0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
 @media (max-width: 1024px) {
     .container {
         padding: 0 20px;
