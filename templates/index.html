@@ -8,20 +8,22 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
 <body>
-    <div class="header">
-        <div class="user-info">
-            <span class="welcome-text">Welcome, <strong>{{ username }}</strong></span>
-            <button onclick="logout()" class="logout-btn">Logout</button>
+    <div class="header-banner">
+        <div class="banner-content">
+            <div class="banner-left">
+                <img src="/images/horizontol-homepage-logo.png" alt="Scanner Logo" class="banner-logo">
+            </div>
+            <div class="user-info">
+                <span class="welcome-text">Welcome, <strong>{{ username }}</strong></span>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
         </div>
-        <img src="/images/horizontol-homepage-logo.png" alt="Scanner Logo" class="logo">
-        <h1>Domain & Email Security Scanner</h1>
-        <p>Comprehensive security analysis for domains and email addresses</p>
     </div>
 
     <div class="container">
         <div class="scanner-section">
             <div class="input-group">
-                <h2>🔍 Scanner Input</h2>
+                <h2>🔍 Domain & Email Security Scanner</h2>
                 <div class="input-container">
                     <label for="scanType">Scan Type:</label>
                     <select id="scanType" class="form-control">
