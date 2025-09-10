@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return details;
         }
         
-        return `<strong>Status:</strong> Clean - No breaches detected<br><strong>Databases Checked:</strong> LeakCheck, HIBP, DeHashed`;
+        return `<strong>Status:</strong> Clean - No breaches detected<br><strong>Databases Checked:</strong> LeakCheck`;
     }
 
     function addExpandHandlers() {
@@ -733,45 +733,6 @@ document.addEventListener('DOMContentLoaded', function() {
         content.innerHTML = html;
     }
 
-    function displaySecurityResults(securityData) {
-        const content = document.getElementById('securityContent');
-        let html = '';
-
-        if (securityData.riskScore !== undefined) {
-            const riskLevel = securityData.riskScore > 70 ? 'error' : securityData.riskScore > 40 ? 'warning' : 'success';
-            html += `
-                <div class="result-item">
-                    <strong>Risk Assessment:</strong><br>
-                    <span class="status-indicator status-${riskLevel}"></span>
-                    Risk Score: ${securityData.riskScore}/100<br>
-                    Level: ${securityData.riskLevel || 'Unknown'}
-                </div>
-            `;
-        }
-
-        if (securityData.threats && securityData.threats.length > 0) {
-            html += `
-                <div class="result-item">
-                    <strong>Detected Threats:</strong><br>
-                    ${securityData.threats.map(threat => 
-                        `<span class="status-indicator status-error"></span>${threat}`
-                    ).join('<br>')}
-                </div>
-            `;
-        }
-
-        if (securityData.reputation) {
-            html += `
-                <div class="result-item">
-                    <strong>Reputation:</strong><br>
-                    <span class="status-indicator status-${securityData.reputation.status}"></span>
-                    Status: ${securityData.reputation.description || 'Unknown'}
-                </div>
-            `;
-        }
-
-        content.innerHTML = html || '<p>Security assessment completed successfully</p>';
-    }
 
     function displayPlaceholderResults(scanType) {
         resultsSection.style.display = 'block';
@@ -781,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let message = '';
         if (scanType === 'email') {
-            message = 'Email scanning coming soon! Will include HIBP, DeHashed, and LeakCheck breach detection.';
+            message = 'Email scanning coming soon! Will include LeakCheck breach detection.';
         }
         
         document.getElementById('securityContent').innerHTML = `
@@ -792,246 +753,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    function displayWhoisResults(data) {
-        resultsSection.style.display = 'block';
-        domainResults.style.display = 'block';
-        emailResults.style.display = 'none';
-        securityResults.style.display = 'block';
 
-        // Display WHOIS domain results
-        const domainContent = document.getElementById('domainContent');
-        let domainHtml = '';
 
-        if (data.status === 'success') {
-            domainHtml += `
-                <div class="result-item">
-                    <strong>Domain Information:</strong><br>
-                    <span class="status-indicator status-success"></span>Domain: ${data.domain}<br>
-                    ${data.registrar ? `Registrar: ${data.registrar}<br>` : ''}
-                    ${data.creation_date ? `Created: ${data.creation_date}<br>` : ''}
-                    ${data.expiration_date ? `Expires: ${data.expiration_date}<br>` : ''}
-                    ${data.updated_date ? `Updated: ${data.updated_date}<br>` : ''}
-                </div>
-            `;
-
-            if (data.nameservers && data.nameservers.length > 0) {
-                domainHtml += `
-                    <div class="result-item">
-                        <strong>Nameservers:</strong><br>
-                        ${data.nameservers.map(ns => 
-                            `<span class="status-indicator status-info"></span>${ns}`
-                        ).join('<br>')}
-                    </div>
-                `;
-            }
-
-            if (data.org || data.registrant_name || data.country) {
-                domainHtml += `
-                    <div class="result-item">
-                        <strong>Registrant Information:</strong><br>
-                        ${data.org ? `<span class="status-indicator status-info"></span>Organization: ${data.org}<br>` : ''}
-                        ${data.registrant_name ? `<span class="status-indicator status-info"></span>Name: ${data.registrant_name}<br>` : ''}
-                        ${data.country ? `<span class="status-indicator status-info"></span>Country: ${data.country}<br>` : ''}
-                        ${data.state ? `<span class="status-indicator status-info"></span>State: ${data.state}<br>` : ''}
-                        ${data.city ? `<span class="status-indicator status-info"></span>City: ${data.city}<br>` : ''}
-                    </div>
-                `;
-            }
-        } else if (data.status === 'error') {
-            domainHtml = `
-                <div class="result-item">
-                    <span class="status-indicator status-error"></span>
-                    Error: ${data.error || 'Failed to retrieve WHOIS information'}
-                </div>
-            `;
-        }
-
-        domainContent.innerHTML = domainHtml;
-
-        // Display security assessment
-        const securityContent = document.getElementById('securityContent');
-        let securityHtml = '';
-
-        if (data.security_assessment) {
-            const assessment = data.security_assessment;
-            const riskColor = assessment.risk_level === 'high' ? 'error' : 
-                             assessment.risk_level === 'medium' ? 'warning' : 'success';
-            
-            securityHtml += `
-                <div class="result-item">
-                    <strong>WHOIS Security Assessment:</strong><br>
-                    <span class="status-indicator status-${riskColor}"></span>
-                    Risk Level: ${assessment.risk_level.toUpperCase()}<br>
-                    ${assessment.days_until_expiry !== null ? 
-                        `Days Until Expiry: ${assessment.days_until_expiry}<br>` : ''}
-                    Privacy Protected: ${assessment.privacy_protected ? 'Yes' : 'No'}
-                </div>
-            `;
-
-            // Add placeholder sections for other services
-            securityHtml += `
-                <div class="result-item" style="opacity: 0.6;">
-                    <strong>Email Breach Detection:</strong><br>
-                    <span class="status-indicator status-info"></span>
-                    HIBP, DeHashed, LeakCheck - Coming Soon
-                </div>
-                <div class="result-item" style="opacity: 0.6;">
-                    <strong>Email Authentication:</strong><br>
-                    <span class="status-indicator status-info"></span>
-                    EasyDMARC SPF/DKIM/DMARC Analysis - Coming Soon
-                </div>
-            `;
-        }
-
-        securityContent.innerHTML = securityHtml || '<p>Security assessment completed</p>';
-    }
-
-    function displayLeakCheckResults(data) {
-        resultsSection.style.display = 'block';
-        domainResults.style.display = 'none';
-        emailResults.style.display = 'block';
-        securityResults.style.display = 'block';
-
-        // Display LeakCheck email results
-        const emailContent = document.getElementById('emailContent');
-        let emailHtml = '';
-
-        if (data.status === 'success') {
-            const riskColor = data.risk_level === 'high' ? 'error' : 
-                             data.risk_level === 'medium' ? 'warning' : 'success';
-            
-            emailHtml += `
-                <div class="result-item">
-                    <strong>LeakCheck Breach Detection:</strong><br>
-                    <span class="status-indicator status-${riskColor}"></span>
-                    Email: ${data.email}<br>
-                    Found in ${data.breach_count} breach(es)<br>
-                    Risk Level: ${data.risk_level.toUpperCase()}
-                </div>
-            `;
-
-            if (data.sources && data.sources.length > 0) {
-                emailHtml += `
-                    <div class="result-item">
-                        <strong>Breach Sources (showing ${Math.min(data.sources.length, 10)} of ${data.total_sources}):</strong><br>
-                        ${data.sources.slice(0, 10).map(source => 
-                            `<span class="status-indicator status-warning"></span>${source}`
-                        ).join('<br>')}
-                    </div>
-                `;
-            }
-        } else if (data.status === 'error') {
-            emailHtml = `
-                <div class="result-item">
-                    <span class="status-indicator status-error"></span>
-                    Error: ${data.error || 'Failed to check email against LeakCheck database'}
-                </div>
-            `;
-        }
-
-        emailContent.innerHTML = emailHtml;
-
-        // Display security assessment
-        const securityContent = document.getElementById('securityContent');
-        let securityHtml = '';
-
-        if (data.status === 'success') {
-            const riskColor = data.risk_level === 'high' ? 'error' : 
-                             data.risk_level === 'medium' ? 'warning' : 'success';
-            
-            securityHtml += `
-                <div class="result-item">
-                    <strong>Email Security Assessment:</strong><br>
-                    <span class="status-indicator status-${riskColor}"></span>
-                    ${data.risk_message}<br>
-                    Status: ${data.message}
-                </div>
-            `;
-        }
-
-        securityContent.innerHTML = securityHtml || '<p>Security assessment completed</p>';
-    }
-
-    function displayCombinedResults(domainData, emailData) {
-        resultsSection.style.display = 'block';
-        domainResults.style.display = 'block';
-        emailResults.style.display = 'block';
-        securityResults.style.display = 'block';
-
-        // Display domain results (reuse existing function logic)
-        const domainContent = document.getElementById('domainContent');
-        let domainHtml = '';
-
-        if (domainData.status === 'success') {
-            domainHtml += `
-                <div class="result-item">
-                    <strong>Domain Information:</strong><br>
-                    <span class="status-indicator status-success"></span>Domain: ${domainData.domain}<br>
-                    ${domainData.registrar ? `Registrar: ${domainData.registrar}<br>` : ''}
-                    ${domainData.creation_date ? `Created: ${domainData.creation_date}<br>` : ''}
-                    ${domainData.expiration_date ? `Expires: ${domainData.expiration_date}<br>` : ''}
-                </div>
-            `;
-        }
-        domainContent.innerHTML = domainHtml;
-
-        // Display email results (reuse LeakCheck logic)
-        const emailContent = document.getElementById('emailContent');
-        let emailHtml = '';
-
-        if (emailData.status === 'success') {
-            const riskColor = emailData.risk_level === 'high' ? 'error' : 
-                             emailData.risk_level === 'medium' ? 'warning' : 'success';
-            
-            emailHtml += `
-                <div class="result-item">
-                    <strong>LeakCheck Breach Detection:</strong><br>
-                    <span class="status-indicator status-${riskColor}"></span>
-                    Email: ${emailData.email}<br>
-                    Found in ${emailData.breach_count} breach(es)<br>
-                    Risk Level: ${emailData.risk_level.toUpperCase()}
-                </div>
-            `;
-        }
-        emailContent.innerHTML = emailHtml;
-
-        // Combined security assessment
-        const securityContent = document.getElementById('securityContent');
-        let securityHtml = '';
-
-        // Domain security
-        if (domainData.security_assessment) {
-            const assessment = domainData.security_assessment;
-            const riskColor = assessment.risk_level === 'high' ? 'error' : 
-                             assessment.risk_level === 'medium' ? 'warning' : 'success';
-            
-            securityHtml += `
-                <div class="result-item">
-                    <strong>Domain Security:</strong><br>
-                    <span class="status-indicator status-${riskColor}"></span>
-                    Risk Level: ${assessment.risk_level.toUpperCase()}<br>
-                    ${assessment.days_until_expiry !== null ? 
-                        `Days Until Expiry: ${assessment.days_until_expiry}<br>` : ''}
-                </div>
-            `;
-        }
-
-        // Email security
-        if (emailData.status === 'success') {
-            const riskColor = emailData.risk_level === 'high' ? 'error' : 
-                             emailData.risk_level === 'medium' ? 'warning' : 'success';
-            
-            securityHtml += `
-                <div class="result-item">
-                    <strong>Email Security:</strong><br>
-                    <span class="status-indicator status-${riskColor}"></span>
-                    ${emailData.risk_message}
-                </div>
-            `;
-        }
-
-        securityContent.innerHTML = securityHtml || '<p>Combined security assessment completed</p>';
-    }
 
     // Initialize form state
     scanType.dispatchEvent(new Event('change'));

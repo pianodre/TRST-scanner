@@ -188,28 +188,6 @@ def parse_dmarc_record(record):
     return details
 
 
-def evaluate_dmarc_status(details):
-    """Evaluate DMARC configuration and return Bad/Okay/Good"""
-    policy = details.get('policy', '').lower()
-    percentage = details.get('percentage', 0)
-    
-    # Bad: No policy, none policy, or very low percentage
-    if not policy or policy == 'none':
-        return 'Bad'
-    
-    if percentage < 25:
-        return 'Bad'
-    
-    # Good: Reject policy with high percentage
-    if policy == 'reject' and percentage >= 100:
-        return 'Good'
-    
-    # Good: Quarantine policy with full percentage and reporting
-    if policy == 'quarantine' and percentage >= 100 and details.get('reporting_uri'):
-        return 'Good'
-    
-    # Okay: Everything else (quarantine with lower percentage, etc.)
-    return 'Okay'
 
 
 def spf_scan(domain):
@@ -353,38 +331,6 @@ def parse_spf_record(record):
     return details
 
 
-def evaluate_spf_status(details):
-    """Evaluate SPF configuration and return Bad/Okay/Good"""
-    all_mechanism = details.get('all_mechanism', '')
-    mechanisms = details.get('mechanisms', [])
-    includes = details.get('includes', [])
-    
-    # Bad: No mechanisms or overly permissive
-    if not mechanisms:
-        return 'Bad'
-    
-    # Bad: +all (allows all senders)
-    if all_mechanism == '+all':
-        return 'Bad'
-    
-    # Bad: No all mechanism at all (implicit +all)
-    if not all_mechanism:
-        return 'Bad'
-    
-    # Good: Hard fail with proper mechanisms
-    if all_mechanism == '-all' and len(mechanisms) > 1:
-        return 'Good'
-    
-    # Good: Soft fail with comprehensive includes and mechanisms
-    if all_mechanism == '~all' and (len(includes) > 0 or len([m for m in mechanisms if 'ip4:' in m or 'mx' in m or 'a' in m]) > 0):
-        return 'Good'
-    
-    # Okay: Neutral or soft fail with some mechanisms
-    if all_mechanism in ['~all', '?all'] and len(mechanisms) > 1:
-        return 'Okay'
-    
-    # Default to Okay for other configurations
-    return 'Okay'
 
 
 def easydmarc_scan(domain):

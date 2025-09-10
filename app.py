@@ -4,7 +4,7 @@ import os
 # Import our modules
 from auth import home_route, login_route, logout_route
 from api_routes import (
-    hibp_scan_route, dehashed_scan_route, leakcheck_scan_route,
+    leakcheck_scan_route,
     easydmarc_scan_route, whois_scan_route, dmarc_scan_route, spf_scan_route, combined_scan
 )
 
@@ -30,13 +30,7 @@ def serve_image(filename):
     return send_from_directory('images', filename)
 
 # API routes
-@app.route('/api/hibp/scan', methods=['POST'])
-def hibp_scan():
-    return hibp_scan_route()
 
-@app.route('/api/dehashed/scan', methods=['POST'])
-def dehashed_scan():
-    return dehashed_scan_route()
 
 @app.route('/api/leakcheck/scan', methods=['POST'])
 def leakcheck_scan():

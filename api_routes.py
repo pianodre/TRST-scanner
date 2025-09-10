@@ -5,7 +5,7 @@ API routes module for scanner endpoints.
 from flask import jsonify, request
 from auth import require_login
 from services.domain_services import whois_scan, easydmarc_scan, dmarc_scan, spf_scan
-from services.email_services import leakcheck_scan, hibp_scan, dehashed_scan
+from services.email_services import leakcheck_scan
 from services.security_utils import assess_combined_risk, format_security_message
 
 
@@ -26,18 +26,8 @@ def create_scan_route(service_function, param_extractors):
     return route_handler
 
 
-def hibp_scan_route():
-    """HIBP (Have I Been Pwned) - Email breach detection"""
-    return create_scan_route(hibp_scan, {'email': lambda d: d.get('email', '').strip()})()
 
 
-def dehashed_scan_route():
-    """DeHashed - Comprehensive breach detection"""
-    return create_scan_route(dehashed_scan, {
-        'email': lambda d: d.get('email', ''),
-        'username': lambda d: d.get('username', ''),
-        'ip': lambda d: d.get('ip', '')
-    })()
 
 
 def leakcheck_scan_route():

@@ -20,7 +20,7 @@ A comprehensive security scanning application that analyzes domains and email ad
 ├── services/                   # Business logic modules
 │   ├── __init__.py            # Package initialization
 │   ├── domain_services.py     # WHOIS & domain analysis
-│   ├── email_services.py      # Email breach detection (LeakCheck, HIBP, DeHashed)
+│   ├── email_services.py      # Email breach detection (LeakCheck)
 │   └── security_utils.py      # Risk assessment utilities
 ├── templates/                  # HTML templates
 │   ├── index.html             # Main scanner interface
